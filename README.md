@@ -4,6 +4,7 @@
 - [] global commands
 - [] Create rough drag and drop Board
 - [] Styling (incl frame)
+- [] Find icons
 - [] Persistance/Save to device
 - [] Command to get window up whenever
 - [] Command to open tray

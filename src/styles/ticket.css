@@ -1,0 +1,31 @@
+:root {
+    --font-color: #B6C2CF;
+    --margin: 8px;
+}
+
+.ticket-tags {
+    display:flex;
+    gap:0.2em;
+}
+
+.ticket-title {
+    font-weight:500;
+    font-size:12px;
+    margin-bottom:var(--margin)
+}
+
+.ticket-title, .ticket-type {
+    color: var(--font-color);
+}
+
+.ticket-group {
+    background: #21262A;
+    width:13em;
+    padding:0.7em;
+    border-radius:0.5em;
+}
+
+.ticket-type {
+    font-size:10px;
+    font-weight:bold;
+}

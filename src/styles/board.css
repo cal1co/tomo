@@ -1,0 +1,21 @@
+.board-component {
+    width: fit-content;
+    background: #161A1D;
+    padding-inline:0.5em;
+    border-radius:0.75em;
+    padding-bottom:4em;
+}
+
+.board-title { 
+    color: #8C9BAB;
+    font-weight:bold;
+    padding:1.5em;
+}
+
+.todo-group {
+    width:fit-content;
+}
+
+.todo-group > .ticket-group {
+    margin-bottom:4px;
+}

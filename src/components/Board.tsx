@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import Ticket from "./Ticket";
+import "../styles/board";
 
 interface BoardProps {
   isTrayWindow: boolean;
@@ -51,21 +53,24 @@ const Board: React.FC<BoardProps> = ({ isTrayWindow }) => {
   };
 
   return (
-    <div className="shared-component">
-      <h3>Shared Component State</h3>
+    <div className="board-component">
+      <div className="board-title">TODO</div>
+      <div className="todo-group">
+        <Ticket />
+        <Ticket />
+        <Ticket />
 
-      <div className="form-group">
-        <label htmlFor="shared-input">Input Field:</label>
+        {/* <label htmlFor="shared-input">Input Field:</label>
         <input
           id="shared-input"
           type="text"
           value={inputValue}
           onChange={handleInputChange}
           placeholder="Type something..."
-        />
+        /> */}
       </div>
-
-      <div className="form-group">
+      {/* 
+      <div className="done-group">
         <label>Radio Options:</label>
         <div className="radio-group">
           <label>
@@ -165,6 +170,7 @@ const Board: React.FC<BoardProps> = ({ isTrayWindow }) => {
           overflow-x: auto;
         }
       `}</style>
+      */}
     </div>
   );
 };

@@ -1,0 +1,9 @@
+.tag-group {
+    width:fit-content;
+    padding-inline:7px;
+    padding-block:2px;
+    font-size: 9px;
+    font-weight:bold;
+    border-radius:0.2em;
+    margin-bottom: 10px;
+}

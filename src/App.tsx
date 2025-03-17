@@ -60,7 +60,7 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <style>{`
+        {/* <style>{`
           .tray-container {
             margin: 0;
             padding: 0;
@@ -111,7 +111,7 @@ const App: React.FC = () => {
           .tray-actions button:hover {
             background-color: #d0d0d0;
           }
-        `}</style>
+        `}</style> */}
       </div>
     );
   }
@@ -119,7 +119,6 @@ const App: React.FC = () => {
   return (
     <>
       <div className="app-content">
-        <h2>Hello from React!</h2>
         <SettingsModal />
         {/* <Board /> */}
         <Board isTrayWindow={false} />
