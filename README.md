@@ -1,9 +1,8 @@
 # TODO:
 
 - [x] Get basic Tray/Menubar working
-- [x] global commands
+- [] global commands
 - [] Create rough drag and drop Board
-- [] Make sure tray and Board are synced (same component if possible)
 - [] Styling (incl frame)
 - [] Persistance/Save to device
 - [] Command to get window up whenever
