@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import SettingsModal from "./components/SettingsModal";
-import Board from "./components/Board";
+import Board from "./components/BoardComponent";
 
 const App: React.FC = () => {
   const [isTrayWindow, setIsTrayWindow] = useState<boolean>(false);
@@ -44,22 +44,21 @@ const App: React.FC = () => {
   if (isTrayWindow) {
     return (
       <div className="tray-container">
-        <div className="tray-header">
+        {/* <div className="tray-header">
           <h3>Tray Menu</h3>
-        </div>
+        </div> */}
         <div className="tray-content">
           <Board isTrayWindow={true} />
 
-          <div className="tray-actions">
+          {/* <div className="tray-actions">
             <button onClick={() => window.electron.send("show-main-app", null)}>
               Show Main App
             </button>
             <button onClick={() => window.electron.send("quit-app", null)}>
               Quit
             </button>
-          </div>
+          </div> */}
         </div>
-
         {/* <style>{`
           .tray-container {
             margin: 0;
@@ -120,6 +119,7 @@ const App: React.FC = () => {
     <>
       <div className="app-content">
         <SettingsModal />
+        {/* <BoardExample /> */}
         {/* <Board /> */}
         <Board isTrayWindow={false} />
       </div>

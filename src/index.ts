@@ -11,8 +11,8 @@ let isQuitting: boolean = false;
 
 const createMainWindow = (): void => {
   mainWindow = new BrowserWindow({
-    height: 600,
-    width: 800,
+    height: 900,
+    width: 1200,
     show: false,
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
@@ -116,8 +116,8 @@ const createTrayWithPopup = (): void => {
   appTray.setToolTip(app.getName());
   
   trayWindow = new BrowserWindow({
-    width: 300,
-    height: 350,
+    width: 550,
+    height: 700,
     show: false,
     frame: false,
     fullscreenable: false,

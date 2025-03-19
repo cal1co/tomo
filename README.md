@@ -2,7 +2,7 @@
 
 - [x] Get basic Tray/Menubar working
 - [] global commands
-- [] Create rough drag and drop Board
+- [] Create rough drag and drop Board (incl ticket + ticket view)
 - [] Styling (incl frame)
 - [] Find icons
 - [] Persistance/Save to device

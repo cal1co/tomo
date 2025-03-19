@@ -14,18 +14,40 @@
     margin-bottom:var(--margin)
 }
 
-.ticket-title, .ticket-type {
+.ticket-title, .ticket-number {
     color: var(--font-color);
 }
 
 .ticket-group {
     background: #21262A;
-    width:13em;
-    padding:0.7em;
-    border-radius:0.5em;
+    width: 13em;
+    padding: 0.7em;
+    border-radius: 0.5em;
+    position: relative;
+    cursor: grab;
+    /* margin-bottom:8px; */
+}
+.ticket-group:hover {
+    background-color: #2C3136;
 }
 
-.ticket-type {
+.ticket-number {
     font-size:10px;
     font-weight:bold;
+}
+
+.ticket-actions {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+}
+
+.tag-group {
+    width: fit-content;
+    padding-inline: 7px;
+    padding-block: 2px;
+    font-size: 9px;
+    font-weight: bold;
+    border-radius: 0.2em;
+    margin-bottom: 10px;
 }
