@@ -66,6 +66,27 @@ const getAppMenuTemplate = (): Electron.MenuItemConstructorOptions[] => [
     ],
   },
   {
+    label: 'Edit',
+    submenu: [
+      { 
+        label: 'Undo', 
+        accelerator: 'CmdOrCtrl+Z', 
+        click: () => {
+          if (mainWindow) {
+            mainWindow.webContents.send('perform-undo');
+          }
+          if (trayWindow && trayWindow.isVisible()) {
+            trayWindow.webContents.send('perform-undo');
+          }
+        }
+      },
+      { role: 'cut' },
+      { role: 'copy' },
+      { role: 'paste' },
+      { role: 'selectAll' },
+    ],
+  },
+  {
     label: 'File',
     submenu: [
       {
@@ -97,6 +118,9 @@ const handleWindowFocus = (): void => {
   if (mainWindow) {
     mainWindow.on('focus', () => {
       globalShortcut.register('CommandOrControl+,', openSettingsModal);
+      globalShortcut.register('CommandOrControl+Z', () => {
+        mainWindow?.webContents.send('perform-undo');
+      });
     });
   }
 };
@@ -105,6 +129,7 @@ const handleWindowBlur = (): void => {
   if (mainWindow) {
     mainWindow.on('blur', () => {
       globalShortcut.unregister('CommandOrControl+,');
+      globalShortcut.unregister('CommandOrControl+Z');
     });
   }
 };

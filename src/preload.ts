@@ -9,13 +9,13 @@ contextBridge.exposeInMainWorld("electron", {
     }
   },
   receive: (channel: string, callback: (data: any) => void) => {
-    const validChannels = ['update-menu-items', 'update-submenu', 'sync-state-update'];
+    const validChannels = ['update-menu-items', 'update-submenu', 'sync-state-update', 'perform-undo'];
     if (validChannels.includes(channel)) {
       ipcRenderer.on(channel, (_, data) => callback(data));
     }
   },
   removeListener: (channel: string) => {
-    const validChannels = ['update-menu-items', 'update-submenu', 'sync-state-update'];
+    const validChannels = ['update-menu-items', 'update-submenu', 'sync-state-update', 'perform-undo'];
     if (validChannels.includes(channel)) {
       ipcRenderer.removeAllListeners(channel);
     }

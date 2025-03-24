@@ -33,7 +33,7 @@ import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/el
 
 import "../../styles/board";
 import Ticket from "../Ticket";
-import { ColumnType } from "./board-context";
+import { ColumnType } from "../../types";
 import { useBoardContext } from "./board-context";
 import {
   ColumnContext,

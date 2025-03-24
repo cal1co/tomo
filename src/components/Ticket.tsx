@@ -77,11 +77,15 @@ function MoveToOtherColumnItem({
 }
 
 function LazyDropdownItems({ ticketId }: { ticketId: string }) {
-  const { getColumns, reorderCard } = useBoardContext();
+  const { getColumns, reorderCard, deleteCard } = useBoardContext();
   const { columnId, getCardIndex, getNumCards } = useColumnContext();
 
   const numCards = getNumCards();
   const startIndex = getCardIndex(ticketId);
+
+  const deleteTicket = useCallback(() => {
+    deleteCard({ columnId, ticketId });
+  }, [columnId, deleteCard, ticketId]);
 
   const moveToTop = useCallback(() => {
     reorderCard({ columnId, startIndex, finishIndex: 0 });
@@ -108,7 +112,10 @@ function LazyDropdownItems({ ticketId }: { ticketId: string }) {
 
   return (
     <Fragment>
-      <DropdownItemGroup title="Reorder">
+      <DropdownItemGroup title="">
+        <DropdownItem onClick={deleteTicket}>Delete</DropdownItem>
+      </DropdownItemGroup>
+      <DropdownItemGroup title="Reorder MAKE THIS NESTED">
         <DropdownItem onClick={moveToTop} isDisabled={isMoveUpDisabled}>
           Move to top
         </DropdownItem>

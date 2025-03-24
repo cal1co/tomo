@@ -1,12 +1,12 @@
 # TODO:
 
 - [x] Get basic Tray/Menubar working
+- [x] Create rough drag and drop Board (incl ticket + ticket view)
+- [x] Ticket creation, deletion, edit, saving
+- [] Persistance/Save to device
 - [] global commands
-- [] Create rough drag and drop Board (incl ticket + ticket view)
-- [] Ticket creation, deletion, edit, saving
 - [] Styling (incl frame)
 - [] Find icons
-- [] Persistance/Save to device
 - [] Command to get window up whenever
 - [] Command to open tray
 - [] Settings (modal) + style

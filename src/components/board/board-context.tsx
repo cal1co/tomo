@@ -1,20 +1,7 @@
 import { createContext, useContext } from "react";
 import invariant from "tiny-invariant";
 import type { CleanupFn } from "@atlaskit/pragmatic-drag-and-drop/types";
-import { TagType } from "../../types/BoardTypes";
-
-export type TicketType = {
-  name: string;
-  number: string;
-  tags: TagType[];
-  ticketId: string;
-};
-
-export type ColumnType = {
-  title: string;
-  columnId: string;
-  items: TicketType[];
-};
+import { ColumnType } from "../../types";
 
 export type BoardContextValue = {
   getColumns: () => ColumnType[];
@@ -34,6 +21,11 @@ export type BoardContextValue = {
     finishColumnId: string;
     itemIndexInStartColumn: number;
     itemIndexInFinishColumn?: number;
+    trigger?: "pointer" | "keyboard";
+  }) => void;
+  deleteCard: (args: {
+    columnId: string;
+    ticketId: string;
     trigger?: "pointer" | "keyboard";
   }) => void;
   registerCard: (args: {
