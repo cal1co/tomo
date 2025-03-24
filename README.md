@@ -3,6 +3,7 @@
 - [x] Get basic Tray/Menubar working
 - [] global commands
 - [] Create rough drag and drop Board (incl ticket + ticket view)
+- [] Ticket creation, deletion, edit, saving
 - [] Styling (incl frame)
 - [] Find icons
 - [] Persistance/Save to device
@@ -10,7 +11,6 @@
 - [] Command to open tray
 - [] Settings (modal) + style
 - [] Refactor
-- [] Ticket creation, deletion, edit, saving
 - [] Tagging
 - [] Note styling (headings, fonts, size, bold, italics, bullet, ordered lists, import photos/drag and drop + resizing, export file, code block)
 - [] Ticket search

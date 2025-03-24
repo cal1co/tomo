@@ -49,7 +49,7 @@
   align-items: center;
   color: #8C9BAB;
   user-select: none;
-  cursor: grab;
+  /* cursor: grab; */
 }
   
   /* .column-title {
