@@ -1,5 +1,5 @@
 import "../styles/Tag";
-import { TagType, getTagStyle } from "../types/BoardTypes";
+import { TagType, getTagStyle } from "../types";
 
 const Tag: React.FC<TagType> = ({ name, color, id }) => {
   return (

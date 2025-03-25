@@ -33,7 +33,8 @@ import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/el
 
 import "../../styles/board";
 import Ticket from "../Ticket";
-import { ColumnType } from "../../types";
+import CreateTicketModal from "../CreateTicketModal";
+import { ColumnType, TagType, TicketType } from "../../types";
 import { useBoardContext } from "./board-context";
 import {
   ColumnContext,
@@ -50,6 +51,14 @@ type State =
 
 const idle: State = { type: "idle" };
 const isCardOver: State = { type: "is-card-over" };
+
+// DELETE ME
+const dummyTags: TagType[] = [
+  { color: "purple", name: "tag", id: "1" },
+  { color: "green", name: "tag", id: "2" },
+  { color: "blue", name: "tag", id: "3" },
+  { color: "blue", name: "TEST", id: "3" },
+];
 
 function SafariColumnPreview({ column }: { column: ColumnType }) {
   return (
@@ -131,8 +140,9 @@ export const Column = memo(function Column({ column }: { column: ColumnType }) {
   const [state, setState] = useState<State>(idle);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isHovered, setIsHovered] = useState<boolean>(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
 
-  const { instanceId, registerColumn, moveCard, getColumns } =
+  const { instanceId, registerColumn, moveCard, getColumns, addCard } =
     useBoardContext();
 
   const stableData = useRef<{ columnMap: Record<string, ColumnType> }>({
@@ -321,6 +331,15 @@ export const Column = memo(function Column({ column }: { column: ColumnType }) {
     return className;
   };
 
+  // Handle adding a new ticket
+  const handleAddTicket = (ticketData: Omit<TicketType, "ticketId">) => {
+    addCard({
+      columnId,
+      ticket: ticketData,
+      trigger: "keyboard",
+    });
+  };
+
   return (
     <ColumnContext.Provider value={contextValue}>
       <div
@@ -366,7 +385,13 @@ export const Column = memo(function Column({ column }: { column: ColumnType }) {
             </div>
             <div className="column-footer">
               {isHovered && column.title.toLowerCase() !== "done" && (
-                <div className="add-item">+ Add Item</div>
+                <div
+                  className="add-item"
+                  onClick={() => setIsAddModalOpen(true)}
+                  style={{ cursor: "pointer" }}
+                >
+                  + Add Item
+                </div>
               )}
             </div>
           </div>
@@ -378,6 +403,15 @@ export const Column = memo(function Column({ column }: { column: ColumnType }) {
       {state.type === "generate-safari-column-preview"
         ? createPortal(<SafariColumnPreview column={column} />, state.container)
         : null}
+
+      <CreateTicketModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSubmit={handleAddTicket}
+        columnTitle={column.title}
+        columnId={columnId}
+        availableTags={dummyTags}
+      />
     </ColumnContext.Provider>
   );
 });

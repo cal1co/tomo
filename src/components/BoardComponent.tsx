@@ -26,6 +26,7 @@ import {
   CardReorderOutcome,
   CardMoveOutcome,
   CardDeleteOutcome,
+  CardAddOutcome,
 } from "../types";
 import Board from "./board/Board";
 import { BoardContext, type BoardContextValue } from "./board/board-context";
@@ -267,6 +268,19 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
         );
         break;
       }
+
+      case "card-add": {
+        if (!isKeyboardTriggered) return;
+
+        const { columnId, ticket } = outcome;
+        const { columnMap } = stableData.current;
+        const column = columnMap[columnId];
+
+        liveRegion.announce(
+          `Added ticket ${ticket.name} to the ${column.title} column.`
+        );
+        break;
+      }
     }
   }, [lastOperation, registry]);
 
@@ -418,6 +432,59 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
           lastOperation: {
             outcome,
             trigger,
+          },
+        };
+
+        syncState({ boardData: newData });
+        return newData;
+      });
+    },
+    [syncState]
+  );
+
+  const addCard = useCallback(
+    ({
+      columnId,
+      ticket,
+      trigger = "keyboard",
+    }: {
+      columnId: string;
+      ticket: Omit<TicketType, "ticketId">;
+      trigger?: Trigger;
+    }): void => {
+      setData((data) => {
+        const column = data.columnMap[columnId];
+
+        if (!column) return data;
+
+        // Create a new ticket with a unique ID
+        const newTicket: TicketType = {
+          ...ticket,
+          ticketId: `${columnId}-${Date.now()}`,
+        };
+
+        const updatedItems = [...column.items, newTicket];
+
+        const updatedColumn: ColumnType = {
+          ...column,
+          items: updatedItems,
+        };
+
+        const outcome: CardAddOutcome = {
+          type: "card-add",
+          columnId,
+          ticket: newTicket,
+        };
+
+        const newData = {
+          ...data,
+          columnMap: {
+            ...data.columnMap,
+            [columnId]: updatedColumn,
+          },
+          lastOperation: {
+            trigger,
+            outcome,
           },
         };
 
@@ -624,6 +691,7 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
       reorderCard,
       moveCard,
       deleteCard,
+      addCard,
       registerCard: registry.registerCard,
       registerColumn: registry.registerColumn,
       instanceId,
@@ -634,6 +702,7 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
       reorderCard,
       moveCard,
       deleteCard,
+      addCard,
       registry,
       instanceId,
     ]

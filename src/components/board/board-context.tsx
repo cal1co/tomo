@@ -1,32 +1,37 @@
 import { createContext, useContext } from "react";
 import invariant from "tiny-invariant";
 import type { CleanupFn } from "@atlaskit/pragmatic-drag-and-drop/types";
-import { ColumnType } from "../../types";
+import { ColumnType, TicketType, Trigger } from "../../types";
 
 export type BoardContextValue = {
   getColumns: () => ColumnType[];
   reorderColumn: (args: {
     startIndex: number;
     finishIndex: number;
-    trigger?: "pointer" | "keyboard";
+    trigger?: Trigger;
   }) => void;
   reorderCard: (args: {
     columnId: string;
     startIndex: number;
     finishIndex: number;
-    trigger?: "pointer" | "keyboard";
+    trigger?: Trigger;
   }) => void;
   moveCard: (args: {
     startColumnId: string;
     finishColumnId: string;
     itemIndexInStartColumn: number;
     itemIndexInFinishColumn?: number;
-    trigger?: "pointer" | "keyboard";
+    trigger?: Trigger;
   }) => void;
   deleteCard: (args: {
     columnId: string;
     ticketId: string;
-    trigger?: "pointer" | "keyboard";
+    trigger?: Trigger;
+  }) => void;
+  addCard: (args: {
+    columnId: string;
+    ticket: Omit<TicketType, "ticketId">;
+    trigger?: Trigger;
   }) => void;
   registerCard: (args: {
     cardId: string;

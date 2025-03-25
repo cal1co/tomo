@@ -35,7 +35,19 @@ export type CardDeleteOutcome = {
   deletedIndex: number;
 };
 
-export type Outcome = ColumnReorderOutcome | CardReorderOutcome | CardMoveOutcome | CardDeleteOutcome;
+export type CardAddOutcome = {
+  type: "card-add";
+  columnId: string;
+  ticket: TicketType;
+};
+
+export type Outcome = 
+  | ColumnReorderOutcome 
+  | CardReorderOutcome 
+  | CardMoveOutcome 
+  | CardDeleteOutcome
+  | CardAddOutcome;
+
 export type Trigger = "pointer" | "keyboard" | "undo";
 
 export type Operation = {
