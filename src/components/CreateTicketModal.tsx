@@ -38,7 +38,7 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    console.log(ticketName, ticketNumber, selectedTags);
+
     onSubmit({
       name: ticketName,
       number: ticketNumber,
