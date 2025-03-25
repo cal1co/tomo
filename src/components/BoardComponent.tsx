@@ -235,10 +235,8 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
           itemIndexInFinishColumn,
         } = outcome;
 
-        // First, get a safe reference to the data
         const currentData = stableData.current;
 
-        // Check if destination column exists
         if (!currentData.columnMap || !currentData.columnMap[finishColumnId]) {
           console.log(`Destination column ${finishColumnId} not found`);
           return;
@@ -246,7 +244,6 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
 
         const destinationColumn = currentData.columnMap[finishColumnId];
 
-        // Check if items array exists and item index is valid
         if (
           !destinationColumn.items ||
           itemIndexInFinishColumn < 0 ||
@@ -258,7 +255,6 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
           return;
         }
 
-        // Get the item and check it has required properties
         const item = destinationColumn.items[itemIndexInFinishColumn];
         if (
           !item ||
@@ -271,7 +267,6 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
 
         const finishPosition = itemIndexInFinishColumn + 1;
 
-        // Try to focus, but don't fail if it doesn't work
         try {
           const entry = registry.getCard(item.ticketId);
           if (entry && entry.actionMenuTrigger) {
@@ -281,7 +276,6 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
           console.error("Error focusing card:", error);
         }
 
-        // Still provide feedback even if focusing fails
         liveRegion.announce(
           `You've moved ${item.name} from position ${
             itemIndexInStartColumn + 1
@@ -435,29 +429,24 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
       if (startColumnId === finishColumnId) return;
 
       setData((data) => {
-        // Get references to the columns
         const sourceColumn = data.columnMap[startColumnId];
         const destinationColumn = data.columnMap[finishColumnId];
 
-        // Safety check - ensure the source column exists
         if (!sourceColumn) {
           console.error(`Source column ${startColumnId} not found`);
           return data;
         }
 
-        // Safety check - ensure the destination column exists
         if (!destinationColumn) {
           console.error(`Destination column ${finishColumnId} not found`);
           return data;
         }
 
-        // Safety check - ensure source column has items array
         if (!sourceColumn.items || !Array.isArray(sourceColumn.items)) {
           console.error(`Source column ${startColumnId} has no items array`);
           return data;
         }
 
-        // Safety check - ensure item index is valid
         if (
           itemIndexInStartColumn < 0 ||
           itemIndexInStartColumn >= sourceColumn.items.length
@@ -468,26 +457,21 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
           return data;
         }
 
-        // Get the item to move
         const item = sourceColumn.items[itemIndexInStartColumn];
 
-        // Safety check - ensure the item exists and has a ticketId
         if (!item || typeof item.ticketId !== "string") {
           console.error("Invalid item or missing ticketId", item);
           return data;
         }
 
-        // Ensure destination items is an array
         const destinationItems = Array.isArray(destinationColumn.items)
           ? [...destinationColumn.items]
           : [];
 
         const newIndexInDestination = itemIndexInFinishColumn ?? 0;
 
-        // Insert the item at the appropriate position
         destinationItems.splice(newIndexInDestination, 0, item);
 
-        // Create a safe filter function
         const filteredSourceItems = Array.isArray(sourceColumn.items)
           ? sourceColumn.items.filter((i) => i && i.ticketId !== item.ticketId)
           : [];

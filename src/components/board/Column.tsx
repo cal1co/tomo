@@ -331,7 +331,6 @@ export const Column = memo(function Column({ column }: { column: ColumnType }) {
     return className;
   };
 
-  // Handle adding a new ticket
   const handleAddTicket = (ticketData: Omit<TicketType, "ticketId">) => {
     addCard({
       columnId,
