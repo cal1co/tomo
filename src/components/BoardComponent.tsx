@@ -52,12 +52,6 @@ const getInitialData = (): Pick<
   const todoColumn: ColumnType = {
     title: "TODO",
     columnId: "todo",
-    // items: Array.from({ length: 1 }, (_, i) => ({
-    //   name: `Ticket ${i + 1}`,
-    //   number: `TODO-${i + 1}`,
-    //   tags: dummyTags,
-    //   ticketId: `todo-${i + 1}`,
-    // })),
     items: [],
   };
 
@@ -77,6 +71,7 @@ const getInitialData = (): Pick<
 };
 
 const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
+  const [initialStateLoaded, setInitialStateLoaded] = useState<boolean>(false);
   const [data, setData] = useState<BoardState>(() => ({
     ...getInitialData(),
     lastOperation: null,
@@ -94,6 +89,42 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
   }, [data]);
 
   useEffect(() => {
+    const loadInitialState = async () => {
+      if (window.electron?.getBoardState) {
+        console.log("Attempting to load saved board state...");
+        try {
+          const savedState = await window.electron.getBoardState();
+          if (savedState && savedState.boardData) {
+            console.log("Found saved board state!", savedState.boardData);
+
+            const hasItems = Object.values(savedState.boardData.columnMap).some(
+              (column: any) => column.items && column.items.length > 0
+            );
+
+            if (hasItems) {
+              console.log("Setting board to saved state with items");
+              setData(savedState.boardData);
+            } else {
+              console.log(
+                "Saved state exists but has no items, using default state"
+              );
+            }
+          } else {
+            console.log("No saved board state found, using default state");
+          }
+        } catch (error) {
+          console.error("Error loading saved board state:", error);
+        }
+      } else {
+        console.log("getBoardState method not available, using default state");
+      }
+      setInitialStateLoaded(true);
+    };
+
+    loadInitialState();
+  }, []);
+
+  useEffect(() => {
     if (data.lastOperation && data.lastOperation.trigger !== "undo") {
       setHistory((prevHistory) => {
         const newEntry = {
@@ -107,6 +138,7 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
   }, [data]);
 
   const syncState = useCallback((newState: { boardData: BoardState }): void => {
+    console.log("Syncing state to main process:", newState);
     if (window.electron?.send) {
       window.electron.send("sync-state", newState);
     }
@@ -115,7 +147,10 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
   useEffect(() => {
     if (window.electron?.receive) {
       window.electron.receive("sync-state-update", (state) => {
-        setData(state.boardData);
+        console.log("Received state update from main process:", state);
+        if (state && state.boardData) {
+          setData(state.boardData);
+        }
       });
     }
 

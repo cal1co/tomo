@@ -1,5 +1,6 @@
 import { app, BrowserWindow, globalShortcut, Tray, Menu, nativeImage, ipcMain, BrowserView } from 'electron';
 import path from 'path';
+import storageService from './storage-service';
 
 declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
 declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
@@ -9,7 +10,10 @@ let trayWindow: BrowserWindow | null = null;
 let appTray: Tray | null = null;
 let isQuitting: boolean = false;
 
-const createMainWindow = (): void => {
+let boardState: any = null;
+const BOARD_STATE_KEY = 'boardState';
+
+const createMainWindow = async (): Promise<void> => {
   mainWindow = new BrowserWindow({
     height: 900,
     width: 1200,
@@ -22,7 +26,8 @@ const createMainWindow = (): void => {
   });
   
   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
-  mainWindow.webContents.openDevTools();
+  
+  await loadPersistedState();
   
   setAppMenu();
   createTrayWithPopup();
@@ -37,6 +42,8 @@ const createMainWindow = (): void => {
       mainWindow?.hide();
       return false;
     }
+    
+    saveBoardState();
     return true;
   });
   
@@ -94,6 +101,37 @@ const getAppMenuTemplate = (): Electron.MenuItemConstructorOptions[] => [
         accelerator: 'CmdOrCtrl+,',
         click: openSettingsModal,
       },
+      { type: 'separator' },
+      {
+        label: 'Export Data',
+        click: exportData,
+      },
+      {
+        label: 'Import Data',
+        click: importData,
+      },
+      { type: 'separator' },
+      {
+        label: 'Enable iCloud Sync',
+        type: 'checkbox',
+        checked: storageService.isICloudEnabled(),
+        enabled: storageService.isICloudAvailable(),
+        click: (menuItem) => {
+          const success = storageService.enableICloud(menuItem.checked);
+          if (!success && menuItem.checked) {
+            menuItem.checked = false;
+            if (mainWindow) {
+              mainWindow.webContents.send('show-message', {
+                type: 'error',
+                message: 'Failed to enable iCloud sync. Make sure iCloud Drive is enabled on your device.'
+              });
+            }
+          } else if (success && menuItem.checked) {
+            
+            saveBoardState();
+          }
+        }
+      }
     ],
   },
 ];
@@ -103,6 +141,89 @@ const openSettingsModal = (): void => {
     mainWindow.show();
     mainWindow.focus();
     mainWindow.webContents.send('open-settings-modal');
+  }
+};
+
+const exportData = async (): Promise<void> => {
+  if (!mainWindow) return;
+  
+  const { dialog } = require('electron');
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: 'Export Data',
+    defaultPath: path.join(app.getPath('documents'), 'board-data.json'),
+    filters: [{ name: 'JSON Files', extensions: ['json'] }],
+  });
+  
+  if (result.canceled || !result.filePath) return;
+  
+  try {
+    
+    if (boardState) {
+      const fs = require('fs');
+      await fs.promises.writeFile(result.filePath, JSON.stringify(boardState, null, 2), 'utf8');
+      
+      mainWindow.webContents.send('show-message', {
+        type: 'success',
+        message: 'Data exported successfully'
+      });
+    }
+  } catch (error) {
+    console.error('Failed to export data:', error);
+    mainWindow.webContents.send('show-message', {
+      type: 'error',
+      message: 'Failed to export data'
+    });
+  }
+};
+
+const importData = async (): Promise<void> => {
+  if (!mainWindow) return;
+  
+  const { dialog } = require('electron');
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Import Data',
+    properties: ['openFile'],
+    filters: [{ name: 'JSON Files', extensions: ['json'] }],
+  });
+  
+  if (result.canceled || !result.filePaths || result.filePaths.length === 0) return;
+  
+  try {
+    const fs = require('fs');
+    const data = await fs.promises.readFile(result.filePaths[0], 'utf8');
+    const parsedData = JSON.parse(data);
+    
+    
+    if (parsedData && parsedData.boardData) {
+      boardState = parsedData;
+      
+      
+      if (mainWindow) {
+        mainWindow.webContents.send('sync-state-update', boardState);
+      }
+      if (trayWindow) {
+        trayWindow.webContents.send('sync-state-update', boardState);
+      }
+      
+      
+      await saveBoardState();
+      
+      mainWindow.webContents.send('show-message', {
+        type: 'success',
+        message: 'Data imported successfully'
+      });
+    } else {
+      mainWindow.webContents.send('show-message', {
+        type: 'error',
+        message: 'Invalid data format'
+      });
+    }
+  } catch (error) {
+    console.error('Failed to import data:', error);
+    mainWindow.webContents.send('show-message', {
+      type: 'error',
+      message: 'Failed to import data'
+    });
   }
 };
 
@@ -231,17 +352,85 @@ const setupIPC = (): void => {
   ipcMain.on('sync-state', (event, state) => {
     const senderWindow = BrowserWindow.fromWebContents(event.sender);
     
+    
+    boardState = state;
+    
     if (senderWindow === mainWindow && trayWindow) {
       trayWindow.webContents.send('sync-state-update', state);
     } else if (senderWindow === trayWindow && mainWindow) {
       mainWindow.webContents.send('sync-state-update', state);
     }
+    
+    
+    debouncedSaveBoardState();
   });
   
   ipcMain.handle('is-tray-window', (event) => {
     const windowUrl = event.sender.getURL();
     return windowUrl.includes('tray=true');
   });
+  
+  
+  ipcMain.handle('get-board-state', async () => {
+    console.log('Renderer requested board state:', boardState);
+    return boardState;
+  });
+  
+  ipcMain.on('save-board-state', async (event, state) => {
+    boardState = state;
+    await saveBoardState();
+  });
+  
+  ipcMain.handle('is-icloud-available', () => {
+    return storageService.isICloudAvailable();
+  });
+  
+  ipcMain.handle('is-icloud-enabled', () => {
+    return storageService.isICloudEnabled();
+  });
+  
+  ipcMain.handle('toggle-icloud', async (event, enable) => {
+    return storageService.enableICloud(enable);
+  });
+};
+
+
+let saveTimeout: NodeJS.Timeout | null = null;
+const debouncedSaveBoardState = () => {
+  if (saveTimeout) {
+    clearTimeout(saveTimeout);
+  }
+  
+  saveTimeout = setTimeout(() => {
+    saveBoardState();
+    saveTimeout = null;
+  }, 1000); 
+};
+
+const saveBoardState = async (): Promise<void> => {
+  if (boardState) {
+    try {
+      await storageService.saveData(BOARD_STATE_KEY, boardState);
+      console.log('Board state saved successfully');
+    } catch (error) {
+      console.error('Failed to save board state:', error);
+    }
+  }
+};
+
+const loadPersistedState = async (): Promise<void> => {
+  try {
+    console.log(`Attempting to load state from ${BOARD_STATE_KEY}`);
+    const savedState = await storageService.loadData(BOARD_STATE_KEY);
+    if (savedState) {
+      boardState = savedState;
+      console.log('Loaded persisted board state:', boardState);
+    } else {
+      console.log('No persisted state found');
+    }
+  } catch (error) {
+    console.error('Failed to load persisted state:', error);
+  }
 };
 
 const initializeApp = (): void => {
@@ -268,8 +457,15 @@ const initializeApp = (): void => {
     }
   });
   
-  app.on('before-quit', () => {
+  app.on('before-quit', async () => {
     isQuitting = true;
+    
+    if (saveTimeout) {
+      clearTimeout(saveTimeout);
+      saveTimeout = null;
+    }
+    
+    await saveBoardState();
   });
 };
 

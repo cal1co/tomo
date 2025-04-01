@@ -3,7 +3,7 @@
 - [x] Get basic Tray/Menubar working
 - [x] Create rough drag and drop Board (incl ticket + ticket view)
 - [x] Ticket creation, deletion, edit, saving
-- [] Persistance/Save to device
+- [x] Persistance/Save to device
 - [] Tagging
 - [] global commands
 - [] Styling (incl frame)
