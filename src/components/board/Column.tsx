@@ -141,6 +141,7 @@ export const Column = memo(function Column({ column }: { column: ColumnType }) {
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isHovered, setIsHovered] = useState<boolean>(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
+  const [showBottomIndicator, setShowBottomIndicator] = useState(false);
 
   const { instanceId, registerColumn, moveCard, getColumns, addCard } =
     useBoardContext();
@@ -212,36 +213,19 @@ export const Column = memo(function Column({ column }: { column: ColumnType }) {
           );
         },
         getIsSticky: () => true,
-        onDragEnter: () => setState(isCardOver),
-        onDragLeave: () => setState(idle),
-        onDragStart: () => setState(isCardOver),
-        onDrag: () => {
-          if (column.items.length === 0) {
+        onDragEnter: () => {
+          if (column.items.length > 0) {
+            setShowBottomIndicator(true);
+          } else {
             setState(isCardOver);
           }
         },
-        onDrop: (args) => {
-          if (column.items.length === 0 && args.source.data.type === "card") {
-            const itemId = args.source.data.itemId;
-            if (args.location.initial.dropTargets.length >= 2) {
-              const [, startColumnRecord] = args.location.initial.dropTargets;
-              const sourceId = startColumnRecord.data.columnId;
-
-              if (typeof sourceId === "string" && typeof itemId === "string") {
-                const sourceColumn = stableData.current.columnMap[sourceId];
-                const itemIndex = sourceColumn.items.findIndex(
-                  (item) => item.ticketId === itemId
-                );
-
-                moveCard({
-                  itemIndexInStartColumn: itemIndex,
-                  startColumnId: sourceId,
-                  finishColumnId: columnId,
-                  trigger: "pointer",
-                });
-              }
-            }
-          }
+        onDragLeave: () => {
+          setShowBottomIndicator(false);
+          setState(idle);
+        },
+        onDrop: () => {
+          setShowBottomIndicator(false);
           setState(idle);
         },
       }),
@@ -298,7 +282,7 @@ export const Column = memo(function Column({ column }: { column: ColumnType }) {
           source.data.instanceId === instanceId && source.data.type === "card",
       })
     );
-  }, [columnId, registerColumn, instanceId, moveCard]);
+  }, [columnId, registerColumn, instanceId, moveCard, column.items.length]);
 
   const stableItems = useRef(column.items);
   useEffect(() => {
@@ -397,6 +381,9 @@ export const Column = memo(function Column({ column }: { column: ColumnType }) {
         </div>
         {state.type === "is-column-over" && state.closestEdge && (
           <DropIndicator edge={state.closestEdge} gap="8px" />
+        )}
+        {showBottomIndicator && column.items.length > 0 && (
+          <DropIndicator edge="bottom" gap="4px" />
         )}
       </div>
       {state.type === "generate-safari-column-preview"

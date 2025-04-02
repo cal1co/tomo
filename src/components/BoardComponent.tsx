@@ -704,6 +704,7 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
         (item) => item.ticketId === itemId
       );
 
+      // When dropping on a column (no card target)
       if (location.current.dropTargets.length === 1) {
         const [destinationColumnRecord] = location.current.dropTargets;
         const destinationId = destinationColumnRecord.data.columnId;
@@ -713,31 +714,28 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
         invariant(destinationColumn);
 
         if (sourceColumn === destinationColumn) {
-          const destinationIndex = getReorderDestinationIndex({
-            startIndex: itemIndex,
-            indexOfTarget: sourceColumn.items.length - 1,
-            closestEdgeOfTarget: null,
-            axis: "vertical",
-          });
-
+          // For reordering within the same column, put at the end
           reorderCard({
             columnId: sourceColumn.columnId,
             startIndex: itemIndex,
-            finishIndex: destinationIndex,
+            finishIndex: sourceColumn.items.length - 1, // End of column
             trigger: "pointer",
           });
           return;
         }
 
+        // For moving to another column, put at the end
         moveCard({
           itemIndexInStartColumn: itemIndex,
           startColumnId: sourceColumn.columnId,
           finishColumnId: destinationColumn.columnId,
+          itemIndexInFinishColumn: destinationColumn.items.length, // End of column
           trigger: "pointer",
         });
         return;
       }
 
+      // When dropping on a card within a column
       if (location.current.dropTargets.length === 2) {
         const [destinationCardRecord, destinationColumnRecord] =
           location.current.dropTargets;
