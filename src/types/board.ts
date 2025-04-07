@@ -42,11 +42,12 @@ export type CardAddOutcome = {
 };
 
 export type Outcome = 
-  | ColumnReorderOutcome 
-  | CardReorderOutcome 
-  | CardMoveOutcome 
-  | CardDeleteOutcome
-  | CardAddOutcome;
+| ColumnReorderOutcome
+| CardReorderOutcome
+| CardMoveOutcome
+| CardDeleteOutcome
+| CardAddOutcome
+| CardUpdateOutcome;
 
 export type Trigger = "pointer" | "keyboard" | "undo";
 
@@ -64,4 +65,11 @@ export type BoardState = {
 export type HistoryEntry = {
   state: BoardState;
   timestamp: number;
+};
+
+export type CardUpdateOutcome = {
+  type: 'card-update';
+  columnId: string;
+  ticketId: string;
+  updatedTicket: TicketType;
 };

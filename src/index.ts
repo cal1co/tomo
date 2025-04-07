@@ -50,6 +50,8 @@ const createMainWindow = async (): Promise<void> => {
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show();
   });
+
+  mainWindow.webContents.openDevTools()
 };
 
 const setAppMenu = (): void => {
@@ -391,6 +393,20 @@ const setupIPC = (): void => {
   
   ipcMain.handle('toggle-icloud', async (event, enable) => {
     return storageService.enableICloud(enable);
+  });
+
+  ipcMain.handle('upload-image', async (event, imageData) => {
+    try {
+      // For this implementation, we're storing images directly in the data
+      // If you want to save images to disk instead, you could do that here
+      // and return a file path reference
+      
+      // Just return the image data as is for now
+      return { success: true, imageData };
+    } catch (error) {
+      console.error('Failed to process image:', error);
+      return { success: false, error: 'Failed to process image' };
+    }
   });
 };
 

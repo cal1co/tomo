@@ -34,6 +34,12 @@ export type BoardContextValue = {
     ticket: Omit<TicketType, "ticketId">;
     trigger?: Trigger;
   }) => void;
+  updateCard: (args: {
+    columnId: string;
+    ticketId: string;
+    updatedTicket: TicketType;
+    trigger?: Trigger;
+  }) => void;
   registerCard: (args: {
     cardId: string;
     entry: {

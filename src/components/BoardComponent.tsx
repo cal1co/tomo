@@ -27,6 +27,7 @@ import {
   CardMoveOutcome,
   CardDeleteOutcome,
   CardAddOutcome,
+  CardUpdateOutcome, // Add this type to your types.ts file
 } from "../types";
 import Board from "./board/Board";
 import { BoardContext, type BoardContextValue } from "./board/board-context";
@@ -346,6 +347,19 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
         );
         break;
       }
+
+      case "card-update": {
+        if (!isKeyboardTriggered) return;
+
+        const { columnId, ticketId } = outcome;
+        const { columnMap } = stableData.current;
+        const column = columnMap[columnId];
+
+        liveRegion.announce(
+          `Updated ticket ${ticketId} in the ${column.title} column.`
+        );
+        break;
+      }
     }
   }, [lastOperation, registry]);
 
@@ -595,6 +609,60 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
     [syncState]
   );
 
+  const updateCard = useCallback(
+    ({
+      columnId,
+      ticketId,
+      updatedTicket,
+      trigger = "keyboard",
+    }: {
+      columnId: string;
+      ticketId: string;
+      updatedTicket: TicketType;
+      trigger?: Trigger;
+    }): void => {
+      setData((data) => {
+        const column = data.columnMap[columnId];
+        if (!column) return data;
+
+        const itemIndex = column.items.findIndex(
+          (item) => item.ticketId === ticketId
+        );
+
+        if (itemIndex === -1) return data;
+
+        const updatedItems = [...column.items];
+        updatedItems[itemIndex] = updatedTicket;
+
+        const outcome: CardUpdateOutcome = {
+          type: "card-update",
+          columnId,
+          ticketId,
+          updatedTicket,
+        };
+
+        const newData = {
+          ...data,
+          columnMap: {
+            ...data.columnMap,
+            [columnId]: {
+              ...column,
+              items: updatedItems,
+            },
+          },
+          lastOperation: {
+            trigger,
+            outcome,
+          },
+        };
+
+        syncState({ boardData: newData });
+        return newData;
+      });
+    },
+    [syncState]
+  );
+
   const deleteCard = useCallback(
     ({
       columnId,
@@ -790,6 +858,7 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
       moveCard,
       deleteCard,
       addCard,
+      updateCard,
       registerCard: registry.registerCard,
       registerColumn: registry.registerColumn,
       instanceId,
@@ -801,6 +870,7 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
       moveCard,
       deleteCard,
       addCard,
+      updateCard,
       registry,
       instanceId,
     ]

@@ -33,9 +33,10 @@ import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/el
 
 import "../styles/ticket";
 import Tag from "./Tag";
-import { TagType } from "../types";
+import { TagType, TicketType } from "../types";
 import { useBoardContext } from "./board/board-context";
 import { useColumnContext } from "./board/column-context";
+import TicketViewModal from "./TicketViewModal";
 
 type State =
   | { type: "idle" }
@@ -53,6 +54,7 @@ type TicketPrimitiveProps = {
   ticketId: string;
   state: State;
   actionMenuTriggerRef?: Ref<HTMLButtonElement>;
+  onClick?: () => void;
 };
 
 function MoveToOtherColumnItem({
@@ -146,9 +148,29 @@ function LazyDropdownItems({ ticketId }: { ticketId: string }) {
 
 const TicketPrimitive = forwardRef<HTMLDivElement, TicketPrimitiveProps>(
   function TicketPrimitive(
-    { closestEdge, name, number, tags, ticketId, state, actionMenuTriggerRef },
+    {
+      closestEdge,
+      name,
+      number,
+      tags,
+      ticketId,
+      state,
+      actionMenuTriggerRef,
+      onClick,
+    },
     ref
   ) {
+    const handleClick = (e: React.MouseEvent) => {
+      // Prevent opening modal when clicking on action menu
+      if ((e.target as HTMLElement).closest(".ticket-actions")) {
+        return;
+      }
+
+      if (onClick) {
+        onClick();
+      }
+    };
+
     return (
       <div
         ref={ref}
@@ -160,6 +182,7 @@ const TicketPrimitive = forwardRef<HTMLDivElement, TicketPrimitiveProps>(
           opacity: state.type === "dragging" ? 0.4 : 1,
           boxShadow: state.type !== "preview" ? "var(--shadow-raised)" : "none",
         }}
+        onClick={handleClick}
       >
         <div className="ticket-title">{name}</div>
         <div className="ticket-tags">
@@ -208,9 +231,59 @@ export const Ticket = memo(function Ticket({
   const ref = useRef<HTMLDivElement | null>(null);
   const [closestEdge, setClosestEdge] = useState<Edge | null>(null);
   const [state, setState] = useState<State>(idleState);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const { getColumns } = useBoardContext();
+  const { columnId } = useColumnContext();
 
   const actionMenuTriggerRef = useRef<HTMLButtonElement>(null);
   const { instanceId, registerCard } = useBoardContext();
+
+  const getTicketData = useCallback((): TicketType | null => {
+    const columns = getColumns();
+    for (const column of columns) {
+      const ticket = column.items.find((item) => item.ticketId === ticketId);
+      if (ticket) {
+        return ticket;
+      }
+    }
+    return null;
+  }, [getColumns, ticketId]);
+
+  const [ticketData, setTicketData] = useState<TicketType | null>(null);
+
+  useEffect(() => {
+    const data = getTicketData();
+    setTicketData(data);
+  }, [getTicketData]);
+
+  const handleOpenModal = useCallback(() => {
+    if (state.type === "idle") {
+      const data = getTicketData();
+      setTicketData(data);
+      setIsModalOpen(true);
+    }
+  }, [state.type, getTicketData]);
+
+  const handleCloseModal = useCallback(() => {
+    setIsModalOpen(false);
+  }, []);
+
+  // Get the updateCard function from context at component level, not inside another hook
+  const { updateCard } = useBoardContext();
+
+  const handleSaveTicket = useCallback(
+    (updatedTicket: TicketType) => {
+      updateCard({
+        columnId,
+        ticketId,
+        updatedTicket,
+      });
+
+      setIsModalOpen(false);
+    },
+    [updateCard, columnId, ticketId]
+  );
 
   useEffect(() => {
     invariant(actionMenuTriggerRef.current);
@@ -286,6 +359,12 @@ export const Ticket = memo(function Ticket({
     );
   }, [instanceId, ticketId]);
 
+  const availableTags: TagType[] = [
+    { color: "purple", name: "tag", id: "1" },
+    { color: "green", name: "tag", id: "2" },
+    { color: "blue", name: "tag", id: "3" },
+  ];
+
   return (
     <Fragment>
       <TicketPrimitive
@@ -297,6 +376,7 @@ export const Ticket = memo(function Ticket({
         state={state}
         closestEdge={closestEdge}
         actionMenuTriggerRef={actionMenuTriggerRef}
+        onClick={handleOpenModal}
       />
       {state.type === "preview" &&
         ReactDOM.createPortal(
@@ -318,6 +398,15 @@ export const Ticket = memo(function Ticket({
           </div>,
           state.container
         )}
+      {isModalOpen && ticketData && (
+        <TicketViewModal
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          ticket={ticketData}
+          availableTags={availableTags}
+          onSave={handleSaveTicket}
+        />
+      )}
     </Fragment>
   );
 });
