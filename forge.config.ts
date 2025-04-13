@@ -11,12 +11,31 @@ import { FuseV1Options, FuseVersion } from '@electron/fuses';
 import { mainConfig } from './webpack.main.config';
 import { rendererConfig } from './webpack.renderer.config';
 
+const packagerConfig: any = {
+  icon: './resources/icons/icon',
+  asar: true,
+  extraResource: [
+    './resources/icons'
+  ],
+  asarUnpack: [
+    "resources/**"
+  ],
+  files: [
+    "resources/icons/**/*"
+  ]
+};
+
 const config: ForgeConfig = {
-  packagerConfig: {
-    asar: true,
-  },
+  packagerConfig,
   rebuildConfig: {},
-  makers: [new MakerSquirrel({}), new MakerZIP({}, ['darwin']), new MakerRpm({}), new MakerDeb({})],
+  makers: [
+    new MakerSquirrel({
+      setupIcon: './resources/icons/icon.ico'
+    }),
+    new MakerZIP({}, ['darwin']),
+    new MakerRpm({}),
+    new MakerDeb({})
+  ],
   plugins: [
     new AutoUnpackNativesPlugin({}),
     new WebpackPlugin({

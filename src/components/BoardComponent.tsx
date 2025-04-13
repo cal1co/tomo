@@ -22,17 +22,17 @@ import {
   TicketType,
   Trigger,
   HistoryEntry,
-  ColumnReorderOutcome,
   CardReorderOutcome,
   CardMoveOutcome,
   CardDeleteOutcome,
   CardAddOutcome,
-  CardUpdateOutcome, // Add this type to your types.ts file
+  CardUpdateOutcome,
 } from "../types";
 import Board from "./board/Board";
 import { BoardContext, type BoardContextValue } from "./board/board-context";
 import { Column } from "./board/Column";
 import { createRegistry } from "./board/registery";
+import BoardUtilsPanel from "./BoardUtilsPanel";
 
 const MAX_HISTORY = 20;
 
@@ -44,12 +44,6 @@ const getInitialData = (): Pick<
   BoardState,
   "columnMap" | "orderedColumnIds"
 > => {
-  const dummyTags: TagType[] = [
-    { color: "purple", name: "tag", id: "1" },
-    { color: "green", name: "tag", id: "2" },
-    { color: "blue", name: "tag", id: "3" },
-  ];
-
   const todoColumn: ColumnType = {
     title: "TODO",
     columnId: "todo",
@@ -231,19 +225,6 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
     const isKeyboardTriggered = trigger === "keyboard";
 
     switch (outcome.type) {
-      case "column-reorder": {
-        const { startIndex, finishIndex } = outcome;
-        const { columnMap, orderedColumnIds } = stableData.current;
-        const sourceColumn = columnMap[orderedColumnIds[finishIndex]];
-
-        liveRegion.announce(
-          `You've moved ${sourceColumn.title} from position ${
-            startIndex + 1
-          } to position ${finishIndex + 1} of ${orderedColumnIds.length}.`
-        );
-        break;
-      }
-
       case "card-reorder": {
         if (!isKeyboardTriggered) return;
 
@@ -372,43 +353,7 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
     return orderedColumnIds.map((columnId) => columnMap[columnId]);
   }, []);
 
-  const reorderColumn = useCallback(
-    ({
-      startIndex,
-      finishIndex,
-      trigger = "keyboard",
-    }: {
-      startIndex: number;
-      finishIndex: number;
-      trigger?: Trigger;
-    }): void => {
-      setData((data) => {
-        const outcome: ColumnReorderOutcome = {
-          type: "column-reorder",
-          columnId: data.orderedColumnIds[startIndex],
-          startIndex,
-          finishIndex,
-        };
-
-        const newData = {
-          ...data,
-          orderedColumnIds: reorder({
-            list: data.orderedColumnIds,
-            startIndex,
-            finishIndex,
-          }),
-          lastOperation: {
-            outcome,
-            trigger,
-          },
-        };
-
-        syncState({ boardData: newData });
-        return newData;
-      });
-    },
-    [syncState]
-  );
+  // Removed the reorderColumn function since we don't want columns to be reorderable anymore
 
   const reorderCard = useCallback(
     ({
@@ -726,38 +671,12 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
           const { location, source } = args;
           if (!location.current.dropTargets.length) return;
 
-          if (source.data.type === "column") {
-            handleColumnDrop(source, location);
-            return;
-          }
-
           if (source.data.type === "card") {
             handleCardDrop(source, location);
           }
         },
       })
     );
-
-    function handleColumnDrop(source: any, location: any) {
-      const startIndex: number = data.orderedColumnIds.findIndex(
-        (columnId) => columnId === source.data.columnId
-      );
-
-      const target = location.current.dropTargets[0];
-      const indexOfTarget: number = data.orderedColumnIds.findIndex(
-        (id) => id === target.data.columnId
-      );
-      const closestEdgeOfTarget: Edge | null = extractClosestEdge(target.data);
-
-      const finishIndex = getReorderDestinationIndex({
-        startIndex,
-        indexOfTarget,
-        closestEdgeOfTarget,
-        axis: "horizontal",
-      });
-
-      reorderColumn({ startIndex, finishIndex, trigger: "pointer" });
-    }
 
     function handleCardDrop(source: any, location: any) {
       const itemId = source.data.itemId;
@@ -848,12 +767,13 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
         });
       }
     }
-  }, [data, instanceId, moveCard, reorderCard, reorderColumn]);
+  }, [data, instanceId, moveCard, reorderCard]);
 
   const contextValue: BoardContextValue = useMemo(
     () => ({
       getColumns,
-      reorderColumn,
+      // Keep reorderColumn in the interface but make it a no-op function
+      reorderColumn: () => {},
       reorderCard,
       moveCard,
       deleteCard,
@@ -865,7 +785,6 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
     }),
     [
       getColumns,
-      reorderColumn,
       reorderCard,
       moveCard,
       deleteCard,
@@ -878,11 +797,16 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
 
   return (
     <BoardContext.Provider value={contextValue}>
-      <Board>
-        {data.orderedColumnIds.map((columnId) => (
-          <Column column={data.columnMap[columnId]} key={columnId} />
-        ))}
-      </Board>
+      <div className="board-window-parent">
+        <div className="board-window">
+          <BoardUtilsPanel />
+          <Board>
+            {data.orderedColumnIds.map((columnId) => (
+              <Column column={data.columnMap[columnId]} key={columnId} />
+            ))}
+          </Board>
+        </div>
+      </div>
     </BoardContext.Provider>
   );
 };

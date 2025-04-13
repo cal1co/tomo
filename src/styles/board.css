@@ -1,7 +1,7 @@
 .board-component {
   display:flex;
   gap:10px;
-  justify-content:center;
+  justify-content:space-between;
   align-items:center
 }
 
@@ -17,6 +17,17 @@
   overflow-x: auto;
 }
   
+.column-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8C9BAB;
+  background-color: #21262A;
+  border-radius: 12px;
+  padding: 2px 8px;
+  min-width: 24px;
+  text-align: center;
+}
+
   /* .column-component.card-over {
     background-color: #2C3136;
   } */
@@ -61,7 +72,8 @@
   height: 100%;
   overflow-y: auto;
   scroll-behavior: smooth;
-  border-radius:0.75em;
+  padding-top:5px;
+  border-radius: 0 0.75em 0.75em 0;
 }
   
 .column-tickets {
@@ -105,4 +117,29 @@
 .add-item:hover, .column-footer:hover {
   cursor:pointer;
   text-decoration:underline;
+}
+
+.board-utils {
+  width:inherit
+}
+
+.board-window-parent {
+  display:flex;
+  justify-content:center;
+  flex-direction:column;
+  align-items:center;
+}
+
+.search-field {
+  width:120px;
+  transition:all 0.1s ease-in-out
+}
+
+.search-field:focus-within {
+  width:184px;
+}
+
+.search-input-icon {
+  padding-block-start:0.125rem;
+  padding-inline-start:0.5rem
 }

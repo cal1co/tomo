@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import SettingsModal from "./components/SettingsModal";
 import Board from "./components/BoardComponent";
 import Notification from "./components/Notification";
+import { token, setGlobalTheme } from "@atlaskit/tokens";
 
 type NotificationData = {
   type: "success" | "error" | "info" | "warning";
@@ -10,6 +11,13 @@ type NotificationData = {
 };
 
 const App: React.FC = () => {
+  setGlobalTheme({
+    light: "light",
+    dark: "dark",
+    colorMode: "auto",
+    typography: "typography-modernized",
+  });
+
   const [isTrayWindow, setIsTrayWindow] = useState<boolean>(false);
   const [notification, setNotification] = useState<NotificationData | null>(
     null

@@ -6,130 +6,31 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
 import invariant from "tiny-invariant";
-import { IconButton } from "@atlaskit/button/new";
-import DropdownMenu, {
-  type CustomTriggerProps,
-  DropdownItem,
-  DropdownItemGroup,
-} from "@atlaskit/dropdown-menu";
-import mergeRefs from "@atlaskit/ds-lib/merge-refs";
-import MoreIcon from "@atlaskit/icon/utility/migration/show-more-horizontal--editor-more";
 import { autoScrollForElements } from "@atlaskit/pragmatic-drag-and-drop-auto-scroll/element";
-import {
-  attachClosestEdge,
-  type Edge,
-  extractClosestEdge,
-} from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator/box";
 import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
-import {
-  draggable,
-  dropTargetForElements,
-} from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
-import { centerUnderPointer } from "@atlaskit/pragmatic-drag-and-drop/element/center-under-pointer";
-import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview";
+import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 
 import "../../styles/board";
 import Ticket from "../Ticket";
 import CreateTicketModal from "../CreateTicketModal";
 import { ColumnType, TagType, TicketType } from "../../types";
 import { useBoardContext } from "./board-context";
-import {
-  ColumnContext,
-  type ColumnContextProps,
-  useColumnContext,
-} from "./column-context";
+import { ColumnContext, type ColumnContextProps } from "./column-context";
 
-type State =
-  | { type: "idle" }
-  | { type: "is-card-over" }
-  | { type: "is-column-over"; closestEdge: Edge | null }
-  | { type: "generate-safari-column-preview"; container: HTMLElement }
-  | { type: "generate-column-preview" };
+type State = { type: "idle" } | { type: "is-card-over" };
 
 const idle: State = { type: "idle" };
 const isCardOver: State = { type: "is-card-over" };
 
-// DELETE ME
+// Dummy tags
 const dummyTags: TagType[] = [
   { color: "purple", name: "tag", id: "1" },
   { color: "green", name: "tag", id: "2" },
   { color: "blue", name: "tag", id: "3" },
   { color: "blue", name: "TEST", id: "3" },
 ];
-
-function SafariColumnPreview({ column }: { column: ColumnType }) {
-  return (
-    <div className="column-header-preview">
-      <span className="column-title">{column.title}</span>
-    </div>
-  );
-}
-
-function ActionMenu() {
-  return (
-    <DropdownMenu trigger={DropdownMenuTrigger}>
-      <ActionMenuItems />
-    </DropdownMenu>
-  );
-}
-
-function ActionMenuItems() {
-  const { columnId } = useColumnContext();
-  const { getColumns, reorderColumn } = useBoardContext();
-
-  const columns = getColumns();
-  const startIndex = columns.findIndex(
-    (column) => column.columnId === columnId
-  );
-
-  const moveLeft = useCallback(() => {
-    reorderColumn({
-      startIndex,
-      finishIndex: startIndex - 1,
-    });
-  }, [reorderColumn, startIndex]);
-
-  const moveRight = useCallback(() => {
-    reorderColumn({
-      startIndex,
-      finishIndex: startIndex + 1,
-    });
-  }, [reorderColumn, startIndex]);
-
-  const isMoveLeftDisabled = startIndex === 0;
-  const isMoveRightDisabled = startIndex === columns.length - 1;
-
-  return (
-    <DropdownItemGroup>
-      <DropdownItem isDisabled={isMoveLeftDisabled}>Add Item</DropdownItem>
-      <DropdownItem onClick={moveLeft} isDisabled={isMoveLeftDisabled}>
-        Move left
-      </DropdownItem>
-      <DropdownItem onClick={moveRight} isDisabled={isMoveRightDisabled}>
-        Move right
-      </DropdownItem>
-    </DropdownItemGroup>
-  );
-}
-
-function DropdownMenuTrigger({
-  triggerRef,
-  ...triggerProps
-}: CustomTriggerProps) {
-  return (
-    <IconButton
-      ref={mergeRefs([triggerRef])}
-      appearance="subtle"
-      label="Actions"
-      spacing="compact"
-      icon={MoreIcon}
-      {...triggerProps}
-    />
-  );
-}
 
 export const Column = memo(function Column({ column }: { column: ColumnType }) {
   const columnId = column.columnId;
@@ -138,7 +39,6 @@ export const Column = memo(function Column({ column }: { column: ColumnType }) {
   const headerRef = useRef<HTMLDivElement | null>(null);
   const scrollableRef = useRef<HTMLDivElement | null>(null);
   const [state, setState] = useState<State>(idle);
-  const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isHovered, setIsHovered] = useState<boolean>(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
   const [showBottomIndicator, setShowBottomIndicator] = useState(false);
@@ -171,39 +71,6 @@ export const Column = memo(function Column({ column }: { column: ColumnType }) {
           element: columnRef.current,
         },
       }),
-      draggable({
-        element: columnRef.current,
-        dragHandle: headerRef.current,
-        getInitialData: () => ({ columnId, type: "column", instanceId }),
-        onGenerateDragPreview: ({ nativeSetDragImage }) => {
-          const isSafari: boolean =
-            navigator.userAgent.includes("AppleWebKit") &&
-            !navigator.userAgent.includes("Chrome");
-
-          if (!isSafari) {
-            setState({ type: "generate-column-preview" });
-            return;
-          }
-          setCustomNativeDragPreview({
-            getOffset: centerUnderPointer,
-            render: ({ container }) => {
-              setState({
-                type: "generate-safari-column-preview",
-                container,
-              });
-              return () => setState(idle);
-            },
-            nativeSetDragImage,
-          });
-        },
-        onDragStart: () => {
-          setIsDragging(true);
-        },
-        onDrop() {
-          setState(idle);
-          setIsDragging(false);
-        },
-      }),
       dropTargetForElements({
         element: columnInnerRef.current,
         getData: () => ({ columnId }),
@@ -226,53 +93,6 @@ export const Column = memo(function Column({ column }: { column: ColumnType }) {
         },
         onDrop: () => {
           setShowBottomIndicator(false);
-          setState(idle);
-        },
-      }),
-      dropTargetForElements({
-        element: columnRef.current,
-        canDrop: ({ source }) => {
-          return (
-            source.data.instanceId === instanceId &&
-            source.data.type === "column"
-          );
-        },
-        getIsSticky: () => true,
-        getData: ({ input, element }) => {
-          const data = {
-            columnId,
-          };
-          return attachClosestEdge(data, {
-            input,
-            element,
-            allowedEdges: ["left", "right"],
-          });
-        },
-        onDragEnter: (args) => {
-          setState({
-            type: "is-column-over",
-            closestEdge: extractClosestEdge(args.self.data),
-          });
-        },
-        onDrag: (args) => {
-          setState((current) => {
-            const closestEdge: Edge | null = extractClosestEdge(args.self.data);
-            if (
-              current.type === "is-column-over" &&
-              current.closestEdge === closestEdge
-            ) {
-              return current;
-            }
-            return {
-              type: "is-column-over",
-              closestEdge,
-            };
-          });
-        },
-        onDragLeave: () => {
-          setState(idle);
-        },
-        onDrop: () => {
           setState(idle);
         },
       }),
@@ -308,14 +128,10 @@ export const Column = memo(function Column({ column }: { column: ColumnType }) {
       className += " card-over";
     }
 
-    if (state.type === "generate-column-preview") {
-      className += " preview-generating";
-    }
-
     return className;
   };
 
-  const handleAddTicket = (ticketData: Omit<TicketType, "ticketId">) => {
+  const handleAddTicket = (ticketData: TicketType) => {
     addCard({
       columnId,
       ticket: ticketData,
@@ -336,7 +152,7 @@ export const Column = memo(function Column({ column }: { column: ColumnType }) {
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
-          <div className={`column-content ${isDragging ? "dragging" : ""}`}>
+          <div className="column-content">
             <div
               className="column-header"
               ref={headerRef}
@@ -348,7 +164,7 @@ export const Column = memo(function Column({ column }: { column: ColumnType }) {
               >
                 {column.title}
               </span>
-              <ActionMenu />
+              <span className="column-count">{column.items.length}</span>
             </div>
             <div className="column-scrollable" ref={scrollableRef}>
               <div className="column-tickets">
@@ -379,16 +195,10 @@ export const Column = memo(function Column({ column }: { column: ColumnType }) {
             </div>
           </div>
         </div>
-        {state.type === "is-column-over" && state.closestEdge && (
-          <DropIndicator edge={state.closestEdge} gap="8px" />
-        )}
         {showBottomIndicator && column.items.length > 0 && (
           <DropIndicator edge="bottom" gap="4px" />
         )}
       </div>
-      {state.type === "generate-safari-column-preview"
-        ? createPortal(<SafariColumnPreview column={column} />, state.container)
-        : null}
 
       <CreateTicketModal
         isOpen={isAddModalOpen}

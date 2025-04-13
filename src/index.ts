@@ -1,5 +1,6 @@
 import { app, BrowserWindow, globalShortcut, Tray, Menu, nativeImage, ipcMain, BrowserView } from 'electron';
 import path from 'path';
+import fs from 'fs'
 import storageService from './storage-service';
 
 declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
@@ -13,17 +14,52 @@ let isQuitting: boolean = false;
 let boardState: any = null;
 const BOARD_STATE_KEY = 'boardState';
 
+function logAvailablePaths(): void {
+  const paths = {
+    appPath: app.getAppPath(),
+    userData: app.getPath('userData'),
+    executable: app.getPath('exe'),
+    module: app.getPath('module'),
+    resourcesPath: process.resourcesPath,
+    currentDir: __dirname,
+  };
+  
+  console.log('Available paths:');
+  Object.entries(paths).forEach(([key, value]) => {
+    console.log(`- ${key}: ${value}`);
+    
+    if (key === 'resourcesPath' || key === 'appPath') {
+      const iconPath = path.join(value, 'icons');
+      console.log(`  Checking ${iconPath} exists:`, fs.existsSync(iconPath));
+      
+      if (fs.existsSync(iconPath)) {
+        try {
+          const files = fs.readdirSync(iconPath);
+          console.log(`  Files in ${iconPath}:`, files);
+        } catch (err) {
+          console.error(`  Error reading ${iconPath}:`, err);
+        }
+      }
+    }
+  });
+}
+
 const createMainWindow = async (): Promise<void> => {
+  const iconPath = process.platform === 'darwin' 
+    ? path.join(__dirname, '../resources/icons/icon.icns')
+      : path.join(__dirname, '../resources/icons/icon.png');
   mainWindow = new BrowserWindow({
     height: 900,
     width: 1200,
     show: false,
+    icon: iconPath,
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
       nodeIntegration: false,
       contextIsolation: true,
     },
   });
+  
   
   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
   
@@ -258,8 +294,58 @@ const handleWindowBlur = (): void => {
 };
 
 const createTrayWithPopup = (): void => {
-  const iconPath = path.join(__dirname, 'assets', './resources/icon/icon-small.png');
-  const trayIcon = nativeImage.createFromPath(iconPath);
+  logAvailablePaths(); 
+  
+  let iconPath;
+  
+  const possiblePaths = [
+    path.join(app.getAppPath(), 'resources', 'icons', process.platform === 'darwin' ? 'iconTemplate.png' : 'icon.png'),
+    path.join(__dirname, '../../resources/icons', process.platform === 'darwin' ? 'iconTemplate.png' : 'icon.png'),
+    path.join(process.resourcesPath, 'icons', process.platform === 'darwin' ? 'iconTemplate.png' : 'icon.png'),
+    path.join(process.resourcesPath, process.platform === 'darwin' ? 'icon.png' : 'icon.png')
+  ];
+  
+  for (const possiblePath of possiblePaths) {
+    console.log('Checking path:', possiblePath, 'exists:', fs.existsSync(possiblePath));
+    if (fs.existsSync(possiblePath)) {
+      iconPath = possiblePath;
+      break;
+    }
+  }
+  
+  if (!iconPath) {
+    console.warn('No icon found in any of the expected locations.');
+  } else {
+    console.log('Selected icon path for tray:', iconPath);
+  }
+  
+  let trayIcon;
+  try {
+    if (iconPath) {
+      trayIcon = nativeImage.createFromPath(iconPath);
+      
+      if (trayIcon.isEmpty()) {
+        console.warn('Created icon is empty. Using built-in empty icon.');
+        trayIcon = nativeImage.createEmpty();
+      } else {
+        const size = process.platform === 'darwin' ? 16 : 32;
+        if (trayIcon.getSize().width > size) {
+          trayIcon = trayIcon.resize({ width: size, height: size });
+        }
+        
+        if (process.platform === 'darwin') {
+          trayIcon.setTemplateImage(true);
+        }
+      }
+    } else {
+      console.warn('Using empty icon as fallback.');
+      trayIcon = nativeImage.createEmpty();
+    }
+  } catch (error) {
+    console.error('Failed to create tray icon:', error);
+    trayIcon = nativeImage.createEmpty();
+  }
+  
   appTray = new Tray(trayIcon);
   appTray.setToolTip(app.getName());
   
@@ -286,7 +372,7 @@ const createTrayWithPopup = (): void => {
   
   trayWindow.setSkipTaskbar(true);
   
-  appTray.on('click', (event, bounds) => {
+  appTray.on('click', (_, bounds) => {
     const { x, y } = bounds;
     
     const windowBounds = trayWindow?.getBounds();

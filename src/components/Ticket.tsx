@@ -15,6 +15,7 @@ import DropdownMenu, {
   DropdownItem,
   DropdownItemGroup,
 } from "@atlaskit/dropdown-menu";
+import Tooltip from "@atlaskit/tooltip";
 import mergeRefs from "@atlaskit/ds-lib/merge-refs";
 import MoreIcon from "@atlaskit/icon/utility/migration/show-more-horizontal--editor-more";
 import {
@@ -79,34 +80,14 @@ function MoveToOtherColumnItem({
 }
 
 function LazyDropdownItems({ ticketId }: { ticketId: string }) {
-  const { getColumns, reorderCard, deleteCard } = useBoardContext();
-  const { columnId, getCardIndex, getNumCards } = useColumnContext();
+  const { getColumns, deleteCard } = useBoardContext();
+  const { columnId, getCardIndex } = useColumnContext();
 
-  const numCards = getNumCards();
   const startIndex = getCardIndex(ticketId);
 
   const deleteTicket = useCallback(() => {
     deleteCard({ columnId, ticketId });
   }, [columnId, deleteCard, ticketId]);
-
-  const moveToTop = useCallback(() => {
-    reorderCard({ columnId, startIndex, finishIndex: 0 });
-  }, [columnId, reorderCard, startIndex]);
-
-  const moveUp = useCallback(() => {
-    reorderCard({ columnId, startIndex, finishIndex: startIndex - 1 });
-  }, [columnId, reorderCard, startIndex]);
-
-  const moveDown = useCallback(() => {
-    reorderCard({ columnId, startIndex, finishIndex: startIndex + 1 });
-  }, [columnId, reorderCard, startIndex]);
-
-  const moveToBottom = useCallback(() => {
-    reorderCard({ columnId, startIndex, finishIndex: numCards - 1 });
-  }, [columnId, reorderCard, startIndex, numCards]);
-
-  const isMoveUpDisabled = startIndex === 0;
-  const isMoveDownDisabled = startIndex === numCards - 1;
 
   const moveColumnOptions = getColumns().filter(
     (column) => column.columnId !== columnId
@@ -116,20 +97,6 @@ function LazyDropdownItems({ ticketId }: { ticketId: string }) {
     <Fragment>
       <DropdownItemGroup title="">
         <DropdownItem onClick={deleteTicket}>Delete</DropdownItem>
-      </DropdownItemGroup>
-      <DropdownItemGroup title="Reorder MAKE THIS NESTED">
-        <DropdownItem onClick={moveToTop} isDisabled={isMoveUpDisabled}>
-          Move to top
-        </DropdownItem>
-        <DropdownItem onClick={moveUp} isDisabled={isMoveUpDisabled}>
-          Move up
-        </DropdownItem>
-        <DropdownItem onClick={moveDown} isDisabled={isMoveDownDisabled}>
-          Move down
-        </DropdownItem>
-        <DropdownItem onClick={moveToBottom} isDisabled={isMoveDownDisabled}>
-          Move to bottom
-        </DropdownItem>
       </DropdownItemGroup>
       {moveColumnOptions.length ? (
         <DropdownItemGroup title="Move to">
@@ -201,7 +168,7 @@ const TicketPrimitive = forwardRef<HTMLDivElement, TicketPrimitiveProps>(
                     : mergeRefs([triggerRef])
                 }
                 icon={MoreIcon}
-                label={`Move ${name}`}
+                label={`Actions for ${name}`}
                 appearance="default"
                 spacing="compact"
                 {...triggerProps}
@@ -232,9 +199,11 @@ export const Ticket = memo(function Ticket({
   const [closestEdge, setClosestEdge] = useState<Edge | null>(null);
   const [state, setState] = useState<State>(idleState);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCmdHover, setIsCmdHover] = useState(false);
+  const [isMoving, setIsMoving] = useState(false);
 
-  const { getColumns } = useBoardContext();
-  const { columnId } = useColumnContext();
+  const { getColumns, moveCard } = useBoardContext();
+  const { columnId, getCardIndex } = useColumnContext();
 
   const actionMenuTriggerRef = useRef<HTMLButtonElement>(null);
   const { instanceId, registerCard } = useBoardContext();
@@ -251,6 +220,66 @@ export const Ticket = memo(function Ticket({
   }, [getColumns, ticketId]);
 
   const [ticketData, setTicketData] = useState<TicketType | null>(null);
+
+  // Handler for Cmd/Ctrl + Click
+  const handleCmdClick = useCallback(
+    (e: MouseEvent) => {
+      if (e.metaKey || e.ctrlKey) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Set moving state for visual feedback
+        setIsMoving(true);
+
+        // Get the current index of this ticket
+        const currentIndex = getCardIndex(ticketId);
+
+        // Get all columns to find the opposite one
+        const columns = getColumns();
+        const oppositeColumn = columns.find((col) => col.columnId !== columnId);
+
+        if (oppositeColumn) {
+          // Move the card to the top (index 0) of the opposite column
+          moveCard({
+            startColumnId: columnId,
+            finishColumnId: oppositeColumn.columnId,
+            itemIndexInStartColumn: currentIndex,
+            itemIndexInFinishColumn: 0, // Top of the column
+            trigger: "keyboard",
+          });
+
+          // Reset the moving state after a short delay
+          setTimeout(() => {
+            setIsMoving(false);
+          }, 300);
+        }
+      }
+    },
+    [columnId, ticketId, getCardIndex, getColumns, moveCard]
+  );
+
+  // Track command key state for hover effect
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey) {
+        setIsCmdHover(true);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (!e.metaKey && !e.ctrlKey) {
+        setIsCmdHover(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
 
   useEffect(() => {
     const data = getTicketData();
@@ -269,7 +298,7 @@ export const Ticket = memo(function Ticket({
     setIsModalOpen(false);
   }, []);
 
-  // Get the updateCard function from context at component level, not inside another hook
+  // Get the updateCard function from context
   const { updateCard } = useBoardContext();
 
   const handleSaveTicket = useCallback(
@@ -284,6 +313,18 @@ export const Ticket = memo(function Ticket({
     },
     [updateCard, columnId, ticketId]
   );
+
+  // Add click event listener for the Cmd/Ctrl + Click feature
+  useEffect(() => {
+    const element = ref.current;
+    if (element) {
+      element.addEventListener("click", handleCmdClick);
+
+      return () => {
+        element.removeEventListener("click", handleCmdClick);
+      };
+    }
+  }, [handleCmdClick]);
 
   useEffect(() => {
     invariant(actionMenuTriggerRef.current);
@@ -365,19 +406,85 @@ export const Ticket = memo(function Ticket({
     { color: "blue", name: "tag", id: "3" },
   ];
 
+  // Determine CSS classes based on state
+  const getTicketClassName = () => {
+    let className = "ticket-group";
+
+    if (isCmdHover && !isMoving) {
+      className += " cmd-hover";
+    }
+
+    if (isMoving) {
+      className += " cmd-clicked";
+    }
+
+    return className;
+  };
+
+  // Create the tooltip content based on current column
+  const tooltipContent = `⌘+Click to move to ${
+    columnId === "todo" ? "Done" : "TODO"
+  }`;
+
   return (
     <Fragment>
-      <TicketPrimitive
-        ref={ref}
-        name={name}
-        number={number}
-        tags={tags}
-        ticketId={ticketId}
-        state={state}
-        closestEdge={closestEdge}
-        actionMenuTriggerRef={actionMenuTriggerRef}
-        onClick={handleOpenModal}
-      />
+      <Tooltip content={isCmdHover ? tooltipContent : null} position="top">
+        <div
+          ref={ref}
+          className={getTicketClassName()}
+          data-testid={`ticket-${ticketId}`}
+          style={{
+            position: "relative",
+            cursor: state.type === "idle" ? "grab" : "default",
+            opacity: state.type === "dragging" ? 0.4 : 1,
+            boxShadow:
+              state.type !== "preview" ? "var(--shadow-raised)" : "none",
+          }}
+          onClick={(e) => {
+            // Check if Command key (Mac) or Ctrl key (Windows/Linux) is pressed
+            if (e.metaKey || e.ctrlKey) {
+              return; // handleCmdClick will handle this
+            }
+
+            // Prevent opening modal when clicking on action menu
+            if ((e.target as HTMLElement).closest(".ticket-actions")) {
+              return;
+            }
+
+            handleOpenModal();
+          }}
+        >
+          <div className="ticket-title">{name}</div>
+          <div className="ticket-tags">
+            {tags.map((tag) => (
+              <Tag key={tag.id} name={tag.name} color={tag.color} id={tag.id} />
+            ))}
+          </div>
+          <div className="ticket-number">{number}</div>
+          <div className="ticket-actions">
+            <DropdownMenu
+              trigger={({ triggerRef, ...triggerProps }) => (
+                <IconButton
+                  ref={
+                    actionMenuTriggerRef
+                      ? mergeRefs([triggerRef, actionMenuTriggerRef])
+                      : mergeRefs([triggerRef])
+                  }
+                  icon={MoreIcon}
+                  label={`Actions for ${name}`}
+                  appearance="default"
+                  spacing="compact"
+                  {...triggerProps}
+                />
+              )}
+            >
+              <LazyDropdownItems ticketId={ticketId} />
+            </DropdownMenu>
+          </div>
+          {closestEdge && <DropIndicator edge={closestEdge} gap="4px" />}
+        </div>
+      </Tooltip>
+
       {state.type === "preview" &&
         ReactDOM.createPortal(
           <div
@@ -387,14 +494,26 @@ export const Ticket = memo(function Ticket({
               height: state.rect.height,
             }}
           >
-            <TicketPrimitive
-              name={name}
-              number={number}
-              tags={tags}
-              ticketId={ticketId}
-              state={state}
-              closestEdge={null}
-            />
+            <div
+              className="ticket-group"
+              style={{
+                position: "relative",
+                opacity: 1,
+              }}
+            >
+              <div className="ticket-title">{name}</div>
+              <div className="ticket-tags">
+                {tags.map((tag) => (
+                  <Tag
+                    key={tag.id}
+                    name={tag.name}
+                    color={tag.color}
+                    id={tag.id}
+                  />
+                ))}
+              </div>
+              <div className="ticket-number">{number}</div>
+            </div>
           </div>,
           state.container
         )}
