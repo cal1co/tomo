@@ -18,6 +18,7 @@ import CreateTicketModal from "../CreateTicketModal";
 import { ColumnType, TagType, TicketType } from "../../types";
 import { useBoardContext } from "./board-context";
 import { ColumnContext, type ColumnContextProps } from "./column-context";
+import { useSearch } from "../search/search-context";
 
 type State = { type: "idle" } | { type: "is-card-over" };
 
@@ -46,6 +47,9 @@ export const Column = memo(function Column({ column }: { column: ColumnType }) {
   const { instanceId, registerColumn, moveCard, getColumns, addCard } =
     useBoardContext();
 
+  // Get search context
+  const { isTicketVisible, isFiltered, addToSearchIndex } = useSearch();
+
   const stableData = useRef<{ columnMap: Record<string, ColumnType> }>({
     columnMap: {},
   });
@@ -58,6 +62,30 @@ export const Column = memo(function Column({ column }: { column: ColumnType }) {
     });
     stableData.current = { columnMap };
   }, [getColumns]);
+
+  // Get visible items (filtered or all)
+  const visibleItems = useMemo(() => {
+    if (!isFiltered) {
+      return column.items;
+    }
+    return column.items.filter((item) => isTicketVisible(item.ticketId));
+  }, [column.items, isFiltered, isTicketVisible]);
+
+  // Get original index in full items array
+  const getOriginalIndex = useCallback(
+    (ticketId: string) => {
+      return column.items.findIndex((item) => item.ticketId === ticketId);
+    },
+    [column.items]
+  );
+
+  // Get visible index in filtered items array
+  const getVisibleIndex = useCallback(
+    (ticketId: string) => {
+      return visibleItems.findIndex((item) => item.ticketId === ticketId);
+    },
+    [visibleItems]
+  );
 
   useEffect(() => {
     invariant(columnRef.current);
@@ -104,22 +132,47 @@ export const Column = memo(function Column({ column }: { column: ColumnType }) {
     );
   }, [columnId, registerColumn, instanceId, moveCard, column.items.length]);
 
+  // Keep stable items reference for context
   const stableItems = useRef(column.items);
+  const stableVisibleItems = useRef(visibleItems);
+
   useEffect(() => {
     stableItems.current = column.items;
   }, [column.items]);
 
+  useEffect(() => {
+    stableVisibleItems.current = visibleItems;
+  }, [visibleItems]);
+
+  // Get card index in the complete items list
   const getCardIndex = useCallback((ticketId: string) => {
     return stableItems.current.findIndex((item) => item.ticketId === ticketId);
   }, []);
 
+  // Get number of cards (visible if filtered)
   const getNumCards = useCallback(() => {
-    return stableItems.current.length;
-  }, []);
+    return isFiltered
+      ? stableVisibleItems.current.length
+      : stableItems.current.length;
+  }, [isFiltered]);
 
   const contextValue: ColumnContextProps = useMemo(() => {
-    return { columnId, getCardIndex, getNumCards };
-  }, [columnId, getCardIndex, getNumCards]);
+    return {
+      columnId,
+      getCardIndex,
+      getNumCards,
+      getOriginalIndex,
+      getVisibleIndex,
+      isFiltered,
+    };
+  }, [
+    columnId,
+    getCardIndex,
+    getNumCards,
+    getOriginalIndex,
+    getVisibleIndex,
+    isFiltered,
+  ]);
 
   const getColumnClassName = () => {
     let className = "column-component";
@@ -132,6 +185,9 @@ export const Column = memo(function Column({ column }: { column: ColumnType }) {
   };
 
   const handleAddTicket = (ticketData: TicketType) => {
+    // Add to search index when creating a new ticket
+    addToSearchIndex(ticketData);
+
     addCard({
       columnId,
       ticket: ticketData,
@@ -164,11 +220,15 @@ export const Column = memo(function Column({ column }: { column: ColumnType }) {
               >
                 {column.title}
               </span>
-              <span className="column-count">{column.items.length}</span>
+              <span className="column-count">
+                {isFiltered
+                  ? `${visibleItems.length}/${column.items.length}`
+                  : column.items.length}
+              </span>
             </div>
             <div className="column-scrollable" ref={scrollableRef}>
               <div className="column-tickets">
-                {column.items.map((item) => (
+                {visibleItems.map((item) => (
                   <Ticket
                     key={item.ticketId}
                     name={item.name}
@@ -177,8 +237,14 @@ export const Column = memo(function Column({ column }: { column: ColumnType }) {
                     ticketId={item.ticketId}
                   />
                 ))}
-                {column.items.length === 0 && (
-                  <div className="empty-column-drop-area"></div>
+                {visibleItems.length === 0 && (
+                  <div className="empty-column-drop-area">
+                    {isFiltered && column.items.length > 0 ? (
+                      <div className="no-results-message">
+                        No matching tickets
+                      </div>
+                    ) : null}
+                  </div>
                 )}
               </div>
             </div>
@@ -195,7 +261,7 @@ export const Column = memo(function Column({ column }: { column: ColumnType }) {
             </div>
           </div>
         </div>
-        {showBottomIndicator && column.items.length > 0 && (
+        {showBottomIndicator && visibleItems.length > 0 && (
           <DropIndicator edge="bottom" gap="4px" />
         )}
       </div>

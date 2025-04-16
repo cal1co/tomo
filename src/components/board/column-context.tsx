@@ -5,6 +5,9 @@ export type ColumnContextProps = {
   columnId: string;
   getCardIndex: (ticketId: string) => number;
   getNumCards: () => number;
+  getOriginalIndex: (ticketId: string) => number;
+  getVisibleIndex: (ticketId: string) => number;
+  isFiltered: boolean;
 };
 
 export const ColumnContext = createContext<ColumnContextProps | null>(null);

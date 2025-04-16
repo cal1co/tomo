@@ -33,6 +33,7 @@ import { BoardContext, type BoardContextValue } from "./board/board-context";
 import { Column } from "./board/Column";
 import { createRegistry } from "./board/registery";
 import BoardUtilsPanel from "./BoardUtilsPanel";
+import { SearchProvider, useSearch } from "./search/search-context";
 
 const MAX_HISTORY = 20;
 
@@ -65,7 +66,8 @@ const getInitialData = (): Pick<
   };
 };
 
-const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
+// BoardContent component separates the content to use the search context
+const BoardContent: React.FC<BoardProps> = ({ isTrayWindow }) => {
   const [initialStateLoaded, setInitialStateLoaded] = useState<boolean>(false);
   const [data, setData] = useState<BoardState>(() => ({
     ...getInitialData(),
@@ -79,9 +81,28 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
   const stableData = useRef(data);
   const { lastOperation } = data;
 
+  // Get search functions to update the index
+  const {
+    resetSearchIndex,
+    addToSearchIndex,
+    updateSearchIndex,
+    removeFromSearchIndex,
+  } = useSearch();
+
   useEffect(() => {
     stableData.current = data;
   }, [data]);
+
+  // Initialize search index with all tickets when data changes
+  useEffect(() => {
+    const allTickets: TicketType[] = [];
+    Object.values(data.columnMap).forEach((column) => {
+      column.items.forEach((ticket) => {
+        allTickets.push(ticket);
+      });
+    });
+    resetSearchIndex(allTickets);
+  }, [data.columnMap, resetSearchIndex]);
 
   useEffect(() => {
     const loadInitialState = async () => {
@@ -306,12 +327,15 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
       case "card-delete": {
         if (!isKeyboardTriggered) return;
 
-        const { columnId, ticketId } = outcome;
+        const { columnId, ticketId, deletedCard } = outcome;
         const { columnMap } = stableData.current;
         const column = columnMap[columnId];
 
+        // Remove from search index when deleting
+        removeFromSearchIndex(ticketId);
+
         liveRegion.announce(
-          `You've deleted ticket ${ticketId} from the ${column.title} column.`
+          `You've deleted ticket ${deletedCard.name} from the ${column.title} column.`
         );
         break;
       }
@@ -323,6 +347,9 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
         const { columnMap } = stableData.current;
         const column = columnMap[columnId];
 
+        // Add to search index
+        addToSearchIndex(ticket);
+
         liveRegion.announce(
           `Added ticket ${ticket.name} to the ${column.title} column.`
         );
@@ -332,17 +359,26 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
       case "card-update": {
         if (!isKeyboardTriggered) return;
 
-        const { columnId, ticketId } = outcome;
+        const { columnId, ticketId, updatedTicket } = outcome;
         const { columnMap } = stableData.current;
         const column = columnMap[columnId];
 
+        // Update in search index
+        updateSearchIndex(updatedTicket);
+
         liveRegion.announce(
-          `Updated ticket ${ticketId} in the ${column.title} column.`
+          `Updated ticket ${updatedTicket.name} in the ${column.title} column.`
         );
         break;
       }
     }
-  }, [lastOperation, registry]);
+  }, [
+    lastOperation,
+    registry,
+    addToSearchIndex,
+    updateSearchIndex,
+    removeFromSearchIndex,
+  ]);
 
   useEffect(() => {
     return liveRegion.cleanup();
@@ -352,8 +388,6 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
     const { columnMap, orderedColumnIds } = stableData.current;
     return orderedColumnIds.map((columnId) => columnMap[columnId]);
   }, []);
-
-  // Removed the reorderColumn function since we don't want columns to be reorderable anymore
 
   const reorderCard = useCallback(
     ({
@@ -522,7 +556,8 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
           ...ticket,
         };
 
-        const updatedItems = [...column.items, newTicket];
+        // Insert at the beginning of the array instead of the end
+        const updatedItems = [newTicket, ...column.items];
 
         const updatedColumn: ColumnType = {
           ...column,
@@ -808,6 +843,15 @@ const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow = false }) => {
         </div>
       </div>
     </BoardContext.Provider>
+  );
+};
+
+// Main BoardComponent with SearchProvider wrapper
+const BoardComponent: React.FC<BoardProps> = ({ isTrayWindow }) => {
+  return (
+    <SearchProvider>
+      <BoardContent isTrayWindow={isTrayWindow} />
+    </SearchProvider>
   );
 };
 

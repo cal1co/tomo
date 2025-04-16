@@ -7,6 +7,7 @@ import React, {
   useEffect,
   useRef,
   useState,
+  useMemo,
 } from "react";
 import ReactDOM from "react-dom";
 import invariant from "tiny-invariant";
@@ -38,6 +39,7 @@ import { TagType, TicketType } from "../types";
 import { useBoardContext } from "./board/board-context";
 import { useColumnContext } from "./board/column-context";
 import TicketViewModal from "./TicketViewModal";
+import { useSearch } from "./search/search-context";
 
 type State =
   | { type: "idle" }
@@ -66,13 +68,16 @@ function MoveToOtherColumnItem({
   startIndex: number;
 }) {
   const { moveCard } = useBoardContext();
-  const { columnId } = useColumnContext();
+  const { columnId, isFiltered, getOriginalIndex } = useColumnContext();
 
   const onClick = useCallback(() => {
+    // If we're in filtered mode, we need to use the original index
+    const actualIndex = startIndex;
+
     moveCard({
       startColumnId: columnId,
       finishColumnId: targetColumn.columnId,
-      itemIndexInStartColumn: startIndex,
+      itemIndexInStartColumn: actualIndex,
     });
   }, [columnId, moveCard, startIndex, targetColumn.columnId]);
 
@@ -81,9 +86,12 @@ function MoveToOtherColumnItem({
 
 function LazyDropdownItems({ ticketId }: { ticketId: string }) {
   const { getColumns, deleteCard } = useBoardContext();
-  const { columnId, getCardIndex } = useColumnContext();
+  const { columnId, getCardIndex, isFiltered, getOriginalIndex } =
+    useColumnContext();
 
-  const startIndex = getCardIndex(ticketId);
+  // Get the correct index based on filtered state
+  const visibleIndex = getCardIndex(ticketId);
+  const actualIndex = isFiltered ? getOriginalIndex(ticketId) : visibleIndex;
 
   const deleteTicket = useCallback(() => {
     deleteCard({ columnId, ticketId });
@@ -104,7 +112,7 @@ function LazyDropdownItems({ ticketId }: { ticketId: string }) {
             <MoveToOtherColumnItem
               key={column.columnId}
               targetColumn={column}
-              startIndex={startIndex}
+              startIndex={actualIndex}
             />
           ))}
         </DropdownItemGroup>
@@ -203,7 +211,9 @@ export const Ticket = memo(function Ticket({
   const [isMoving, setIsMoving] = useState(false);
 
   const { getColumns, moveCard } = useBoardContext();
-  const { columnId, getCardIndex } = useColumnContext();
+  const { columnId, getCardIndex, isFiltered, getOriginalIndex } =
+    useColumnContext();
+  const { updateSearchIndex, removeFromSearchIndex } = useSearch();
 
   const actionMenuTriggerRef = useRef<HTMLButtonElement>(null);
   const { instanceId, registerCard } = useBoardContext();
@@ -232,7 +242,9 @@ export const Ticket = memo(function Ticket({
         setIsMoving(true);
 
         // Get the current index of this ticket
-        const currentIndex = getCardIndex(ticketId);
+        const currentIndex = isFiltered
+          ? getOriginalIndex(ticketId)
+          : getCardIndex(ticketId);
 
         // Get all columns to find the opposite one
         const columns = getColumns();
@@ -255,7 +267,15 @@ export const Ticket = memo(function Ticket({
         }
       }
     },
-    [columnId, ticketId, getCardIndex, getColumns, moveCard]
+    [
+      columnId,
+      ticketId,
+      getCardIndex,
+      getOriginalIndex,
+      isFiltered,
+      getColumns,
+      moveCard,
+    ]
   );
 
   // Track command key state for hover effect
@@ -303,6 +323,9 @@ export const Ticket = memo(function Ticket({
 
   const handleSaveTicket = useCallback(
     (updatedTicket: TicketType) => {
+      // Update the search index when saving a ticket
+      updateSearchIndex(updatedTicket);
+
       updateCard({
         columnId,
         ticketId,
@@ -311,7 +334,7 @@ export const Ticket = memo(function Ticket({
 
       setIsModalOpen(false);
     },
-    [updateCard, columnId, ticketId]
+    [updateCard, columnId, ticketId, updateSearchIndex]
   );
 
   // Add click event listener for the Cmd/Ctrl + Click feature
@@ -426,6 +449,16 @@ export const Ticket = memo(function Ticket({
     columnId === "todo" ? "Done" : "TODO"
   }`;
 
+  // Highlight matched text if search is active
+  const { searchTerm } = useSearch();
+
+  const highlightedName = useMemo(() => {
+    if (!searchTerm) return name;
+
+    const regex = new RegExp(`(${searchTerm})`, "gi");
+    return name.replace(regex, "<mark>$1</mark>");
+  }, [name, searchTerm]);
+
   return (
     <Fragment>
       <Tooltip content={isCmdHover ? tooltipContent : null} position="top">
@@ -454,7 +487,10 @@ export const Ticket = memo(function Ticket({
             handleOpenModal();
           }}
         >
-          <div className="ticket-title">{name}</div>
+          <div
+            className="ticket-title"
+            dangerouslySetInnerHTML={{ __html: highlightedName }}
+          />
           <div className="ticket-tags">
             {tags.map((tag) => (
               <Tag key={tag.id} name={tag.name} color={tag.color} id={tag.id} />
@@ -501,7 +537,10 @@ export const Ticket = memo(function Ticket({
                 opacity: 1,
               }}
             >
-              <div className="ticket-title">{name}</div>
+              <div
+                className="ticket-title"
+                dangerouslySetInnerHTML={{ __html: highlightedName }}
+              />
               <div className="ticket-tags">
                 {tags.map((tag) => (
                   <Tag
