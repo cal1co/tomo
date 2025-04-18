@@ -3,6 +3,8 @@ import TextField from "@atlaskit/textfield";
 import SearchIcon from "@atlaskit/icon/core/search";
 import CrossIcon from "@atlaskit/icon/core/cross-circle";
 import { useSearch } from "./search/search-context";
+import { IconButton } from "@atlaskit/button/new";
+import MoreIcon from "@atlaskit/icon/utility/migration/show-more-horizontal--editor-more";
 
 const BoardUtilsPanel: React.FC = () => {
 	const {searchTerm, setSearchTerm} = useSearch();
@@ -101,6 +103,13 @@ const BoardUtilsPanel: React.FC = () => {
 						) : null
 					}
 				/>
+			</div>
+			<div className="board-utils-settings">
+				<IconButton
+					icon={ MoreIcon }
+					label="Actions for board"
+				></IconButton>
+
 			</div>
 		</div>
 	);

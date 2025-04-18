@@ -7,9 +7,9 @@ import Tooltip from "@atlaskit/tooltip";
 import mergeRefs from "@atlaskit/ds-lib/merge-refs";
 import MoreIcon from "@atlaskit/icon/utility/migration/show-more-horizontal--editor-more";
 import {
-    attachClosestEdge,
-    type Edge,
-    extractClosestEdge,
+	attachClosestEdge,
+	type Edge,
+	extractClosestEdge,
 } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator/box";
 import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
@@ -17,7 +17,7 @@ import { draggable, dropTargetForElements, } from "@atlaskit/pragmatic-drag-and-
 import { preserveOffsetOnSource } from "@atlaskit/pragmatic-drag-and-drop/element/preserve-offset-on-source";
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview";
 
-import "../styles/ticket";
+import "../styles/ticket.css";
 import Tag from "./Tag";
 import { TagType, TicketType } from "../types";
 import { useBoardContext } from "./board/board-context";
@@ -175,12 +175,7 @@ const TicketPrimitive = forwardRef<HTMLDivElement, TicketPrimitiveProps>(
 	}
 );
 
-export const Ticket = memo(function Ticket({
-											   name,
-											   number,
-											   tags,
-											   ticketId,
-										   }: {
+export const Ticket = memo(function Ticket({name, number, tags, ticketId}: {
 	name: string;
 	number: string;
 	tags: TagType[];
@@ -326,7 +321,6 @@ export const Ticket = memo(function Ticket({
 	}, [handleCmdClick]);
 
 	useEffect(() => {
-
 		if (ref.current && actionMenuTriggerRef.current) {
 			return registerCard({
 				cardId: ticketId,
