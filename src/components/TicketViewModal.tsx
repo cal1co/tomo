@@ -1,355 +1,522 @@
-import React, { useState, useRef, useCallback } from "react";
-import Modal, {
-  ModalBody,
-  ModalFooter,
-  ModalHeader,
-  ModalTitle,
-} from "@atlaskit/modal-dialog";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import Modal, { ModalBody, ModalFooter, ModalHeader, ModalTitle, } from "@atlaskit/modal-dialog";
 import Button from "@atlaskit/button/new";
 import TextField from "@atlaskit/textfield";
 import TextArea from "@atlaskit/textarea";
-import Form, { Field } from "@atlaskit/form";
-import Select from "@atlaskit/select";
-import { TagType, TicketType, AttachmentType } from "../types";
+import Form, { Field, HelperMessage } from "@atlaskit/form";
+import { AttachmentType, GroupType, NotificationType, tagStyleOptions, TagType, TicketType } from "../types";
 import Tag from "./Tag";
-import "../styles/ticket";
+import "../styles/ticket.css";
 import { v4 as uuid } from "uuid";
+import CrossIcon from "@atlaskit/icon/glyph/cross";
+import { TagPicker } from "./TagPicker";
+import SectionMessage from "@atlaskit/section-message";
 
 interface TicketViewModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  ticket: TicketType | null;
-  availableTags: TagType[];
-  onSave: (updatedTicket: TicketType) => void;
+    isOpen: boolean;
+    onClose: () => void;
+    ticket: TicketType;
+    onSave: (updatedTicket: TicketType) => void;
 }
 
 const TicketViewModal: React.FC<TicketViewModalProps> = ({
-  isOpen,
-  onClose,
-  ticket,
-  availableTags,
-  onSave,
-}) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [ticketData, setTicketData] = useState<TicketType | null>(ticket);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const dropAreaRef = useRef<HTMLDivElement>(null);
+                                                             isOpen,
+                                                             onClose,
+                                                             ticket,
+                                                             onSave,
+                                                         }) => {
+    const [isEditing, setIsEditing] = useState(false);
+    const [ticketData, setTicketData] = useState<TicketType>(ticket);
+    const [availableTags, setAvailableTags] = useState<TagType[]>([]);
+    const [availableGroups, setAvailableGroups] = useState<GroupType[]>([]);
+    const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+    const [notification, setNotification] = useState<{
+        type: NotificationType;
+        message: string;
+    } | null>(null);
 
-  React.useEffect(() => {
-    setTicketData(ticket);
-    setIsEditing(false);
-  }, [ticket]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const dropAreaRef = useRef<HTMLDivElement>(null);
 
-  const handleEdit = () => {
-    setIsEditing(true);
-  };
+    useEffect(() => {
+        setTicketData(ticket);
+        setIsEditing(false);
+    }, [ticket]);
 
-  const handleCancel = () => {
-    setTicketData(ticket);
-    setIsEditing(false);
-  };
+    useEffect(() => {
+        const loadTagsAndGroups = async () => {
+            try {
+                if (window.electron) {
 
-  const handleSave = () => {
-    if (ticketData) {
-      onSave(ticketData);
-      setIsEditing(false);
-    }
-  };
+                    const tagData = await window.electron.getTagsData();
+                    if (tagData && Array.isArray(tagData)) {
+                        setAvailableTags(tagData as TagType[]);
+                    }
 
-  const getTagOptions = () => {
-    return availableTags.map((tag) => ({
-      label: tag.name,
-      value: tag.id,
-      tag: tag,
-    }));
-  };
+                    const groupData = await window.electron.getGroupsData();
+                    if (groupData && Array.isArray(groupData)) {
+                        const typedGroupData = groupData as GroupType[];
+                        setAvailableGroups(typedGroupData);
 
-  const handleFieldChange = (field: keyof TicketType, value: any) => {
-    if (ticketData) {
-      setTicketData({
-        ...ticketData,
-        [field]: value,
-      });
-    }
-  };
-
-  const handleTagChange = (selectedOptions: any) => {
-    if (ticketData) {
-      const selectedTags = selectedOptions
-        ? selectedOptions.map((option: any) => option.tag)
-        : [];
-      setTicketData({
-        ...ticketData,
-        tags: selectedTags,
-      });
-    }
-  };
-
-  const handleFileSelect = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = e.target.files;
-      if (files && files.length > 0) {
-        addAttachment(files[0]);
-      }
-    },
-    [ticketData]
-  );
-
-  const addAttachment = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
-      if (ticketData) {
-        const newAttachment: AttachmentType = {
-          id: uuid(),
-          name: file.name,
-          type: file.type,
-          dataUrl: dataUrl,
+                        if (ticket.number) {
+                            const ticketPrefix = ticket.number.split('-')[0];
+                            const matchingGroup = typedGroupData.find(g => g.name === ticketPrefix);
+                            if (matchingGroup) {
+                                setSelectedGroupId(matchingGroup.id);
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error("Error loading tags and groups:", error);
+                setNotification({
+                                    type: "error",
+                                    message: "Failed to load tags and groups",
+                                });
+            }
         };
 
-        const updatedAttachments = ticketData.attachments
-          ? [...ticketData.attachments, newAttachment]
-          : [newAttachment];
+        if (isOpen) {
+            loadTagsAndGroups();
+        }
+    }, [isOpen, ticket.number]);
+
+    const handleEdit = () => {
+        setIsEditing(true);
+    };
+
+    const handleCancel = () => {
+        setTicketData(ticket);
+        setIsEditing(false);
+        setNotification(null);
+    };
+
+    const handleAddTag = (tag: TagType) => {
+        if (!ticketData.tags.some((t) => t.id === tag.id)) {
+            setTicketData({
+                              ...ticketData,
+                              tags: [...ticketData.tags, tag]
+                          });
+        }
+    };
+
+    const handleRemoveTag = (tagId: string) => {
+        setTicketData({
+                          ...ticketData,
+                          tags: ticketData.tags.filter((tag) => tag.id !== tagId)
+                      });
+    };
+
+    const handleFieldChange = (field: keyof TicketType, value: any) => {
+        setTicketData({
+                          ...ticketData,
+                          [field]: value,
+                      });
+    };
+
+    const handleTagChange = (selectedOptions: any) => {
+        const selectedTags = selectedOptions
+            ? selectedOptions.map((option: any) => option.tag)
+            : [];
 
         setTicketData({
-          ...ticketData,
-          attachments: updatedAttachments,
-        });
-      }
+                          ...ticketData,
+                          tags: selectedTags,
+                      });
     };
-    reader.readAsDataURL(file);
-  };
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    if (dropAreaRef.current) {
-      dropAreaRef.current.classList.add("drag-active");
-    }
-  }, []);
+    const handleFileSelect = useCallback(
+        (e: React.ChangeEvent<HTMLInputElement>) => {
+            const files = e.target.files;
+            if (files && files.length > 0) {
+                addAttachment(files[0]);
+            }
+        },
+        [ticketData]
+    );
 
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    if (dropAreaRef.current) {
-      dropAreaRef.current.classList.remove("drag-active");
-    }
-  }, []);
+    const addAttachment = (file: File) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const dataUrl = e.target?.result as string;
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      if (dropAreaRef.current) {
-        dropAreaRef.current.classList.remove("drag-active");
-      }
+            const newAttachment: AttachmentType = {
+                id: uuid(),
+                name: file.name,
+                type: file.type,
+                dataUrl: dataUrl,
+            };
 
-      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        const file = e.dataTransfer.files[0];
-        if (file.type.startsWith("image/")) {
-          addAttachment(file);
+            const updatedAttachments = ticketData.attachments
+                ? [...ticketData.attachments, newAttachment]
+                : [newAttachment];
+
+            setTicketData({
+                              ...ticketData,
+                              attachments: updatedAttachments,
+                          });
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleDragOver = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        if (dropAreaRef.current) {
+            dropAreaRef.current.classList.add("drag-active");
         }
-      }
-    },
-    [ticketData]
-  );
+    }, []);
 
-  const removeAttachment = (attachmentId: string) => {
-    if (ticketData && ticketData.attachments) {
-      const updatedAttachments = ticketData.attachments.filter(
-        (attachment) => attachment.id !== attachmentId
-      );
+    const handleDragLeave = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        if (dropAreaRef.current) {
+            dropAreaRef.current.classList.remove("drag-active");
+        }
+    }, []);
 
-      setTicketData({
-        ...ticketData,
-        attachments: updatedAttachments,
-      });
-    }
-  };
+    const handleDrop = useCallback(
+        (e: React.DragEvent) => {
+            e.preventDefault();
+            if (dropAreaRef.current) {
+                dropAreaRef.current.classList.remove("drag-active");
+            }
 
-  if (!isOpen || !ticketData) return null;
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                const file = e.dataTransfer.files[0];
+                if (file.type.startsWith("image/")) {
+                    addAttachment(file);
+                }
+            }
+        },
+        []
+    );
 
-  return (
-    <Modal onClose={onClose} width="large">
-      <ModalHeader>
-        <ModalTitle>{isEditing ? "Edit Ticket" : ticketData.name}</ModalTitle>
-      </ModalHeader>
-      <ModalBody>
-        <div className="ticket-view-content">
-          {isEditing ? (
-            <Form onSubmit={() => undefined}>
-              {({ formProps }) => (
-                <form {...formProps}>
-                  <Field name="ticketName" label="Ticket Name">
-                    {({ fieldProps }) => (
-                      <TextField
-                        {...fieldProps}
-                        value={ticketData.name}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                          handleFieldChange("name", e.target.value)
-                        }
-                      />
-                    )}
-                  </Field>
+    const removeAttachment = (attachmentId: string) => {
+        if (ticketData.attachments) {
+            const updatedAttachments = ticketData.attachments.filter(
+                (attachment) => attachment.id !== attachmentId
+            );
 
-                  <Field name="ticketNumber" label="Ticket Number">
-                    {({ fieldProps }) => (
-                      <TextField
-                        {...fieldProps}
-                        value={ticketData.number}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                          handleFieldChange("number", e.target.value)
-                        }
-                      />
-                    )}
-                  </Field>
+            setTicketData({
+                              ...ticketData,
+                              attachments: updatedAttachments,
+                          });
+        }
+    };
 
-                  <Field name="tags" label="Tags">
-                    {({ fieldProps }) => (
-                      <Select
-                        {...fieldProps}
-                        menuPosition="fixed"
-                        isMulti
-                        options={getTagOptions()}
-                        value={getTagOptions().filter((option) =>
-                          ticketData.tags.some((tag) => tag.id === option.value)
-                        )}
-                        onChange={handleTagChange}
-                      />
-                    )}
-                  </Field>
+    const handleSave = async () => {
+        if (!ticketData.name.trim()) {
+            setNotification({
+                                type: "warning",
+                                message: "Ticket name cannot be empty",
+                            });
+            return;
+        }
 
-                  <Field name="summary" label="Summary">
-                    {({ fieldProps }) => (
-                      <TextArea
-                        {...fieldProps}
-                        value={ticketData.summary || ""}
-                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                          handleFieldChange("summary", e.target.value)
-                        }
-                        minimumRows={5}
-                      />
-                    )}
-                  </Field>
+        let ticketNumber = ticketData.number;
 
-                  <div className="attachment-section">
-                    <h4>Attachments</h4>
-                    <div
-                      className="drop-area"
-                      ref={dropAreaRef}
-                      onDragOver={handleDragOver}
-                      onDragLeave={handleDragLeave}
-                      onDrop={handleDrop}
+        if (!ticketNumber && selectedGroupId) {
+            const selectedGroup = availableGroups.find(g => g.id === selectedGroupId);
+            if (selectedGroup) {
+                try {
+                    if (window.electron) {
+                        const nextNumber = await window.electron.getNextTicketNumber(selectedGroupId);
+                        ticketNumber = `${ selectedGroup.name }-${ nextNumber }`;
+
+                        await window.electron.incrementTicketNumber(selectedGroupId);
+                    }
+                } catch (error) {
+                    console.error("Error generating ticket number:", error);
+                    setNotification({
+                                        type: "error",
+                                        message: "Failed to generate ticket number",
+                                    });
+                    return;
+                }
+            }
+        }
+
+        if (!ticketNumber) {
+            setNotification({
+                                type: "warning",
+                                message: "Please select a group for the ticket",
+                            });
+            return;
+        }
+
+        const updatedTicket: TicketType = {
+            ...ticketData,
+            name: ticketData.name.trim(),
+            summary: ticketData.summary?.trim(),
+            number: ticketNumber
+        };
+
+        onSave(updatedTicket);
+        setIsEditing(false);
+        setNotification(null);
+    };
+
+    const getTagOptions = () => {
+        return availableTags.map((tag) => ({
+            label: tag.name,
+            value: tag.id,
+            tag: tag,
+        }));
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <Modal onClose={ onClose } width="large">
+            <ModalHeader>
+                <ModalTitle>{ isEditing ? "Edit Ticket" : ticketData.name }</ModalTitle>
+            </ModalHeader>
+            <ModalBody>
+                { notification && (
+                    <SectionMessage
+                        appearance={ notification.type }
+                        title={ notification.type === "error" ? "Error" :
+                            notification.type === "warning" ? "Warning" :
+                                notification.type === "success" ? "Success" : "Info" }
                     >
-                      <p>Drag and drop images here</p>
-                      <Button
-                        appearance="primary"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        or Select File
-                      </Button>
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        style={{ display: "none" }}
-                        accept="image/*"
-                        onChange={handleFileSelect}
-                      />
-                    </div>
+                        { notification.message }
+                    </SectionMessage>
+                ) }
 
-                    {ticketData.attachments &&
-                      ticketData.attachments.length > 0 && (
-                        <div className="attachments-preview">
-                          {ticketData.attachments.map((attachment) => (
-                            <div
-                              key={attachment.id}
-                              className="attachment-item"
-                            >
-                              <img
-                                src={attachment.dataUrl}
-                                alt={attachment.name}
-                                className="attachment-thumb"
-                              />
-                              <div className="attachment-info">
-                                <div>{attachment.name}</div>
-                                <Button
-                                  appearance="subtle"
-                                  onClick={() =>
-                                    removeAttachment(attachment.id)
-                                  }
-                                >
-                                  Remove
-                                </Button>
-                              </div>
+                <div className="ticket-view-content">
+                    { isEditing ? (
+                        <Form onSubmit={ () => undefined }>
+                            { ({formProps}) => (
+                                <form { ...formProps }>
+                                    <Field name="ticketName" label="Ticket Name">
+                                        { ({fieldProps}) => (
+                                            <TextField
+                                                { ...fieldProps }
+                                                value={ ticketData.name }
+                                                onChange={ (e: React.ChangeEvent<HTMLInputElement>) =>
+                                                    handleFieldChange("name", e.target.value)
+                                                }
+                                            />
+                                        ) }
+                                    </Field>
+
+                                    { !ticketData.number && (
+                                        <Field name="group" label="Group">
+                                            { () => (
+                                                <>
+                                                    <select
+                                                        style={ {
+                                                            width: "100%",
+                                                            padding: "8px",
+                                                            borderRadius: "3px",
+                                                            border: "2px solid #DFE1E6",
+                                                            outline: "none",
+                                                            height: "40px",
+                                                            marginBottom: "8px",
+                                                        } }
+                                                        value={ selectedGroupId || "" }
+                                                        onChange={ (e) => setSelectedGroupId(e.target.value || null) }
+                                                    >
+                                                        <option value="">Select a group</option>
+                                                        { availableGroups.map((group) => (
+                                                            <option key={ group.id } value={ group.id }>
+                                                                { group.name } (Next: { group.name }-{ group.nextTicketNumber })
+                                                            </option>
+                                                        )) }
+                                                    </select>
+                                                    <HelperMessage>
+                                                        This will determine the ticket number (e.g., GROUP-1)
+                                                    </HelperMessage>
+                                                </>
+                                            ) }
+                                        </Field>
+                                    ) }
+
+                                    { ticketData.number && (
+                                        <Field name="ticketNumber" label="Ticket Number">
+                                            { ({fieldProps}) => (
+                                                <TextField
+                                                    { ...fieldProps }
+                                                    value={ ticketData.number }
+                                                    isDisabled={ true }
+                                                />
+                                            ) }
+                                        </Field>
+                                    ) }
+
+                                    <Field name="tags" label="Tags">
+                                        { () => (
+                                            <>
+                                                <div style={ {marginBottom: "8px"} }>
+                                                    <TagPicker
+                                                        availableTags={ availableTags }
+                                                        onSelectTag={ handleAddTag }
+                                                    />
+                                                </div>
+                                                <div style={ {display: "flex", flexWrap: "wrap", gap: "4px"} }>
+                                                    { ticketData.tags.map((tag) => (
+                                                        <div
+                                                            key={ tag.id }
+                                                            style={ {
+                                                                display: "flex",
+                                                                alignItems: "center",
+                                                                backgroundColor: tag.color ? tagStyleOptions[tag.color].background : "#F4F5F7",
+                                                                color: tag.color ? tagStyleOptions[tag.color].color : "#42526E",
+                                                                padding: "2px 8px",
+                                                                borderRadius: "3px",
+                                                                fontSize: "12px",
+                                                                margin: "2px",
+                                                            } }
+                                                        >
+                                                            { tag.name }
+                                                            <Button
+                                                                appearance="subtle"
+                                                                spacing="compact"
+                                                                iconBefore={ CrossIcon }
+                                                                onClick={ () => handleRemoveTag(tag.id) }
+                                                            >
+                                                                { "" }
+                                                            </Button>
+                                                        </div>
+                                                    )) }
+                                                </div>
+                                            </>
+                                        ) }
+                                    </Field>
+
+                                    <Field name="summary" label="Summary">
+                                        { ({fieldProps}) => (
+                                            <TextArea
+                                                { ...fieldProps }
+                                                value={ ticketData.summary || "" }
+                                                onChange={ (e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                                                    handleFieldChange("summary", e.target.value)
+                                                }
+                                                minimumRows={ 5 }
+                                            />
+                                        ) }
+                                    </Field>
+
+                                    <div className="attachment-section">
+                                        <h4>Attachments</h4>
+                                        <div
+                                            className="drop-area"
+                                            ref={ dropAreaRef }
+                                            onDragOver={ handleDragOver }
+                                            onDragLeave={ handleDragLeave }
+                                            onDrop={ handleDrop }
+                                        >
+                                            <p>Drag and drop images here</p>
+                                            <Button
+                                                appearance="primary"
+                                                onClick={ () => fileInputRef.current?.click() }
+                                            >
+                                                or Select File
+                                            </Button>
+                                            <input
+                                                type="file"
+                                                ref={ fileInputRef }
+                                                style={ {display: "none"} }
+                                                accept="image/*"
+                                                onChange={ handleFileSelect }
+                                            />
+                                        </div>
+
+                                        { ticketData.attachments &&
+                                            ticketData.attachments.length > 0 && (
+                                                <div className="attachments-preview">
+                                                    { ticketData.attachments.map((attachment) => (
+                                                        <div
+                                                            key={ attachment.id }
+                                                            className="attachment-item"
+                                                        >
+                                                            <img
+                                                                src={ attachment.dataUrl }
+                                                                alt={ attachment.name }
+                                                                className="attachment-thumb"
+                                                            />
+                                                            <div className="attachment-info">
+                                                                <div>{ attachment.name }</div>
+                                                                <Button
+                                                                    appearance="subtle"
+                                                                    onClick={ () =>
+                                                                        removeAttachment(attachment.id)
+                                                                    }
+                                                                >
+                                                                    Remove
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    )) }
+                                                </div>
+                                            ) }
+                                    </div>
+                                </form>
+                            ) }
+                        </Form>
+                    ) : (
+                        <div className="ticket-view-readonly">
+                            <div className="ticket-header">
+                                <div className="ticket-number">{ ticketData.number }</div>
+                                <div className="ticket-tags">
+                                    { ticketData.tags.map((tag) => (
+                                        <Tag
+                                            key={ tag.id }
+                                            id={ tag.id }
+                                            name={ tag.name }
+                                            color={ tag.color }
+                                        />
+                                    )) }
+                                </div>
                             </div>
-                          ))}
+
+                            <div className="ticket-summary">
+                                <h4>Summary</h4>
+                                <p>{ ticketData.summary || "No summary provided." }</p>
+                            </div>
+
+                            { ticketData.attachments && ticketData.attachments.length > 0 && (
+                                <div className="ticket-attachments">
+                                    <h4>Attachments</h4>
+                                    <div className="attachments-gallery">
+                                        { ticketData.attachments.map((attachment) => (
+                                            <div key={ attachment.id } className="attachment-item">
+                                                <img
+                                                    src={ attachment.dataUrl }
+                                                    alt={ attachment.name }
+                                                    className="attachment-image"
+                                                />
+                                            </div>
+                                        )) }
+                                    </div>
+                                </div>
+                            ) }
                         </div>
-                      )}
-                  </div>
-                </form>
-              )}
-            </Form>
-          ) : (
-            <div className="ticket-view-readonly">
-              <div className="ticket-header">
-                <div className="ticket-number">{ticketData.number}</div>
-                <div className="ticket-tags">
-                  {ticketData.tags.map((tag) => (
-                    <Tag
-                      key={tag.id}
-                      id={tag.id}
-                      name={tag.name}
-                      color={tag.color}
-                    />
-                  ))}
+                    ) }
                 </div>
-              </div>
-
-              <div className="ticket-summary">
-                <h4>Summary</h4>
-                <p>{ticketData.summary || "No summary provided."}</p>
-              </div>
-
-              {ticketData.attachments && ticketData.attachments.length > 0 && (
-                <div className="ticket-attachments">
-                  <h4>Attachments</h4>
-                  <div className="attachments-gallery">
-                    {ticketData.attachments.map((attachment) => (
-                      <div key={attachment.id} className="attachment-item">
-                        <img
-                          src={attachment.dataUrl}
-                          alt={attachment.name}
-                          className="attachment-image"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </ModalBody>
-      <ModalFooter>
-        {isEditing ? (
-          <>
-            <Button appearance="subtle" onClick={handleCancel}>
-              Cancel
-            </Button>
-            <Button appearance="primary" onClick={handleSave}>
-              Save Changes
-            </Button>
-          </>
-        ) : (
-          <>
-            <Button appearance="subtle" onClick={onClose}>
-              Close
-            </Button>
-            <Button appearance="primary" onClick={handleEdit}>
-              Edit
-            </Button>
-          </>
-        )}
-      </ModalFooter>
-    </Modal>
-  );
+            </ModalBody>
+            <ModalFooter>
+                { isEditing ? (
+                    <>
+                        <Button appearance="subtle" onClick={ handleCancel }>
+                            Cancel
+                        </Button>
+                        <Button appearance="primary" onClick={ handleSave }>
+                            Save Changes
+                        </Button>
+                    </>
+                ) : (
+                    <>
+                        <Button appearance="subtle" onClick={ onClose }>
+                            Close
+                        </Button>
+                        <Button appearance="primary" onClick={ handleEdit }>
+                            Edit
+                        </Button>
+                    </>
+                ) }
+            </ModalFooter>
+        </Modal>
+    );
 };
 
 export default TicketViewModal;
