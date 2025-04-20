@@ -5,8 +5,8 @@ import { DropIndicator } from "@atlaskit/pragmatic-drag-and-drop-react-drop-indi
 import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
 import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 
-import "../../styles/board";
-import Ticket, { Ticket } from "../Ticket";
+import "../../styles/board.css";
+import { Ticket } from "../Ticket";
 import CreateTicketModal from "../CreateTicketModal";
 import { ColumnType, TagType, TicketType } from "../../types";
 import { useBoardContext } from "./board-context";
@@ -199,10 +199,7 @@ export const Column = memo(function Column({column}: { column: ColumnType }) {
 							ref={ headerRef }
 							data-testid={ `column-header-${ columnId }` }
 						>
-              <span
-				  className="column-title"
-				  data-testid={ `column-header-title-${ columnId }` }
-			  >
+              <span className="column-title" data-testid={ `column-header-title-${ columnId }` }>
                 { column.title }
               </span>
 							<span className="column-count">
