@@ -3,7 +3,7 @@ import invariant from "tiny-invariant";
 import { extractClosestEdge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge";
 import type { Edge } from "@atlaskit/pragmatic-drag-and-drop-hitbox/types";
 import {
-    getReorderDestinationIndex
+	getReorderDestinationIndex
 } from "@atlaskit/pragmatic-drag-and-drop-hitbox/util/get-reorder-destination-index";
 import * as liveRegion from "@atlaskit/pragmatic-drag-and-drop-live-region";
 import { combine } from "@atlaskit/pragmatic-drag-and-drop/combine";
@@ -12,16 +12,16 @@ import { reorder } from "@atlaskit/pragmatic-drag-and-drop/reorder";
 
 import '../styles/board.css';
 import {
-    BoardState,
-    CardAddOutcome,
-    CardDeleteOutcome,
-    CardMoveOutcome,
-    CardReorderOutcome,
-    CardUpdateOutcome,
-    ColumnType,
-    HistoryEntry,
-    TicketType,
-    Trigger,
+	BoardState,
+	CardAddOutcome,
+	CardDeleteOutcome,
+	CardMoveOutcome,
+	CardReorderOutcome,
+	CardUpdateOutcome,
+	ColumnType,
+	HistoryEntry,
+	TicketType,
+	Trigger,
 } from "../types";
 import Board from "./board/Board";
 import { BoardContext, type BoardContextValue } from "./board/board-context";
@@ -61,7 +61,6 @@ const getInitialData = (): Pick<
 	};
 };
 
-// BoardContent component separates the content to use the search context
 const BoardContent: React.FC<BoardProps> = ({isTrayWindow}) => {
 	const [initialStateLoaded, setInitialStateLoaded] = useState<boolean>(false);
 	const [data, setData] = useState<BoardState>(() => ({
@@ -76,7 +75,6 @@ const BoardContent: React.FC<BoardProps> = ({isTrayWindow}) => {
 	const stableData = useRef(data);
 	const {lastOperation} = data;
 
-	// Get search functions to update the index
 	const {
 		resetSearchIndex,
 		addToSearchIndex,
@@ -88,7 +86,6 @@ const BoardContent: React.FC<BoardProps> = ({isTrayWindow}) => {
 		stableData.current = data;
 	}, [data]);
 
-	// Initialize search index with all tickets when data changes
 	useEffect(() => {
 		const allTickets: TicketType[] = [];
 		Object.values(data.columnMap).forEach((column) => {
@@ -326,7 +323,6 @@ const BoardContent: React.FC<BoardProps> = ({isTrayWindow}) => {
 				const {columnMap} = stableData.current;
 				const column = columnMap[columnId];
 
-				// Remove from search index when deleting
 				removeFromSearchIndex(ticketId);
 
 				liveRegion.announce(
@@ -342,7 +338,6 @@ const BoardContent: React.FC<BoardProps> = ({isTrayWindow}) => {
 				const {columnMap} = stableData.current;
 				const column = columnMap[columnId];
 
-				// Add to search index
 				addToSearchIndex(ticket);
 
 				liveRegion.announce(
@@ -358,7 +353,6 @@ const BoardContent: React.FC<BoardProps> = ({isTrayWindow}) => {
 				const {columnMap} = stableData.current;
 				const column = columnMap[columnId];
 
-				// Update in search index
 				updateSearchIndex(updatedTicket);
 
 				liveRegion.announce(
@@ -551,7 +545,6 @@ const BoardContent: React.FC<BoardProps> = ({isTrayWindow}) => {
 					...ticket,
 				};
 
-				// Insert at the beginning of the array instead of the end
 				const updatedItems = [newTicket, ...column.items];
 
 				const updatedColumn: ColumnType = {
@@ -721,7 +714,6 @@ const BoardContent: React.FC<BoardProps> = ({isTrayWindow}) => {
 				(item) => item.ticketId === itemId
 			);
 
-			// When dropping on a column (no card target)
 			if (location.current.dropTargets.length === 1) {
 				const [destinationColumnRecord] = location.current.dropTargets;
 				const destinationId = destinationColumnRecord.data.columnId;
@@ -731,28 +723,26 @@ const BoardContent: React.FC<BoardProps> = ({isTrayWindow}) => {
 				invariant(destinationColumn);
 
 				if (sourceColumn === destinationColumn) {
-					// For reordering within the same column, put at the end
+
 					reorderCard({
 						columnId: sourceColumn.columnId,
 						startIndex: itemIndex,
-						finishIndex: sourceColumn.items.length - 1, // End of column
+						finishIndex: sourceColumn.items.length - 1,
 						trigger: "pointer",
 					});
 					return;
 				}
 
-				// For moving to another column, put at the end
 				moveCard({
 					itemIndexInStartColumn: itemIndex,
 					startColumnId: sourceColumn.columnId,
 					finishColumnId: destinationColumn.columnId,
-					itemIndexInFinishColumn: destinationColumn.items.length, // End of column
+					itemIndexInFinishColumn: destinationColumn.items.length,
 					trigger: "pointer",
 				});
 				return;
 			}
 
-			// When dropping on a card within a column
 			if (location.current.dropTargets.length === 2) {
 				const [destinationCardRecord, destinationColumnRecord] =
 					location.current.dropTargets;
@@ -802,7 +792,7 @@ const BoardContent: React.FC<BoardProps> = ({isTrayWindow}) => {
 	const contextValue: BoardContextValue = useMemo(
 		() => ({
 			getColumns,
-			// Keep reorderColumn in the interface but make it a no-op function
+
 			reorderColumn: () => {
 			},
 			reorderCard,
@@ -842,7 +832,6 @@ const BoardContent: React.FC<BoardProps> = ({isTrayWindow}) => {
 	);
 };
 
-// Main BoardComponent with SearchProvider wrapper
 const BoardComponent: React.FC<BoardProps> = ({isTrayWindow}) => {
 	return (
 		<SearchProvider>
