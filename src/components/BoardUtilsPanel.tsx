@@ -5,6 +5,7 @@ import CrossIcon from "@atlaskit/icon/core/cross-circle";
 import { useSearch } from "./search/search-context";
 import { IconButton } from "@atlaskit/button/new";
 import MoreIcon from "@atlaskit/icon/utility/migration/show-more-horizontal--editor-more";
+import DropdownMenu, { DropdownItem, DropdownItemGroup } from "@atlaskit/dropdown-menu";
 
 const BoardUtilsPanel: React.FC = () => {
 	const {searchTerm, setSearchTerm} = useSearch();
@@ -21,7 +22,7 @@ const BoardUtilsPanel: React.FC = () => {
 			debounceTimerRef.current = setTimeout(() => {
 				setSearchTerm(value);
 				debounceTimerRef.current = null;
-			}, 300);
+			}, 50);
 		},
 		[setSearchTerm]
 	);
@@ -105,11 +106,23 @@ const BoardUtilsPanel: React.FC = () => {
 				/>
 			</div>
 			<div className="board-utils-settings">
-				<IconButton
-					icon={ MoreIcon }
-					label="Actions for board"
-				></IconButton>
-
+				<DropdownMenu
+					trigger={ ({triggerRef, ...triggerProps}) => (
+						<IconButton
+							ref={ triggerRef }
+							icon={ MoreIcon }
+							label={ `Actions for board` }
+							appearance="default"
+							spacing="compact"
+							{ ...triggerProps }
+						/>
+					) }
+				>
+					<DropdownItemGroup>
+						<DropdownItem onClick={ () => console.log("TICKET") }>Configure Tags</DropdownItem>
+						<DropdownItem onClick={ () => console.log("TICKET") }>Configure Groups</DropdownItem>
+					</DropdownItemGroup>
+				</DropdownMenu>
 			</div>
 		</div>
 	);
