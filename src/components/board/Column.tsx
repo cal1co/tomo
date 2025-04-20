@@ -8,7 +8,7 @@ import { dropTargetForElements } from "@atlaskit/pragmatic-drag-and-drop/element
 import "../../styles/board.css";
 import { Ticket } from "../Ticket";
 import CreateTicketModal from "../CreateTicketModal";
-import { ColumnType, TagType, TicketType } from "../../types";
+import { ColumnType, TicketType } from "../../types";
 import { useBoardContext } from "./board-context";
 import { ColumnContext, type ColumnContextProps } from "./column-context";
 import { useSearch } from "../search/search-context";
@@ -17,13 +17,6 @@ type State = { type: "idle" } | { type: "is-card-over" };
 
 const idle: State = {type: "idle"};
 const isCardOver: State = {type: "is-card-over"};
-
-const dummyTags: TagType[] = [
-    {color: "purple", name: "tag", id: "1"},
-    {color: "green", name: "tag", id: "2"},
-    {color: "blue", name: "tag", id: "3"},
-    {color: "blue", name: "TEST", id: "3"},
-];
 
 export const Column = memo(function Column({column}: { column: ColumnType }) {
     const columnId = column.columnId;

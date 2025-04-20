@@ -2,7 +2,7 @@ import { app, BrowserWindow, globalShortcut, ipcMain, Menu, nativeImage, Tray } 
 import path from 'path';
 import fs from 'fs';
 import storageService from './storage-service';
-import { BoardState, GroupType } from "./types";
+import { GroupType } from "./types";
 
 declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
 declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
@@ -16,6 +16,17 @@ let boardState: any = null;
 const BOARD_STATE_KEY = 'boardState';
 const TAGS_KEY = 'tags';
 const GROUPS_KEY = 'groups';
+const SHORTCUTS_KEY = 'keyboardShortcuts';
+
+interface ShortcutConfig {
+    id: string;
+    name: string;
+    description: string;
+    defaultShortcut: string;
+    currentShortcut: string;
+}
+
+let registeredShortcuts: { [id: string]: string } = {};
 
 function logAvailablePaths(): void {
     const paths = {
@@ -167,7 +178,6 @@ const getAppMenuTemplate = (): Electron.MenuItemConstructorOptions[] => [
                             });
                         }
                     } else if (success && menuItem.checked) {
-
                         saveBoardState();
                     }
                 }
@@ -197,7 +207,6 @@ const exportData = async (): Promise<void> => {
     if (result.canceled || !result.filePath) return;
 
     try {
-
         if (boardState) {
             const fs = require('fs');
             await fs.promises.writeFile(result.filePath, JSON.stringify(boardState, null, 2), 'utf8');
@@ -423,6 +432,137 @@ const createTrayWithPopup = (): void => {
     });
 };
 
+function showTrayWindow() {
+    if (!trayWindow) return;
+
+    if (trayWindow.isVisible()) {
+        trayWindow.hide();
+    } else {
+        positionTrayWindow();
+        trayWindow.show();
+        trayWindow.focus();
+    }
+}
+
+function positionTrayWindow() {
+    if (!trayWindow || !appTray) return;
+
+    const trayBounds = appTray.getBounds();
+    const windowBounds = trayWindow.getBounds();
+
+    let x, y;
+
+    if (process.platform === 'darwin') {
+        x = Math.round(trayBounds.x - windowBounds.width / 2);
+        y = Math.round(trayBounds.y + trayBounds.height + 4);
+    } else {
+        x = Math.round(trayBounds.x - windowBounds.width / 2);
+        y = Math.round(trayBounds.y - windowBounds.height);
+    }
+
+    trayWindow.setPosition(x, y, false);
+}
+
+function showCreateTicketInTray() {
+    if (!trayWindow) return;
+
+    if (!trayWindow.isVisible()) {
+        positionTrayWindow();
+        trayWindow.show();
+        trayWindow.focus();
+    }
+
+    trayWindow.webContents.send('show-create-ticket');
+}
+
+function normalizeAccelerator(shortcut: string): string {
+
+    return shortcut
+        .replace(/\+/g, '+')
+        .replace(/\s+/g, '')
+        .replace(/Cmd\+/g, 'CommandOrControl+')
+        .replace(/Alt\+/g, 'Alt+')
+        .replace(/Shift\+/g, 'Shift+')
+        .replace(/Ctrl\+/g, 'Control+');
+}
+
+function handleShortcut(shortcutId: string) {
+    switch (shortcutId) {
+        case 'openTray':
+            showTrayWindow();
+            break;
+        case 'createTicket':
+            showCreateTicketInTray();
+            break;
+        default:
+            console.log(`Unknown shortcut action: ${ shortcutId }`);
+    }
+}
+
+function unregisterAllShortcuts() {
+    Object.keys(registeredShortcuts).forEach(accelerator => {
+        try {
+            globalShortcut.unregister(accelerator);
+        } catch (err) {
+            console.error(`Failed to unregister shortcut ${ accelerator }:`, err);
+        }
+    });
+    registeredShortcuts = {};
+}
+
+function registerShortcuts(shortcuts: ShortcutConfig[]) {
+    shortcuts.forEach(shortcut => {
+        const accelerator = normalizeAccelerator(shortcut.currentShortcut);
+
+        try {
+
+            const success = globalShortcut.register(accelerator, () => {
+                handleShortcut(shortcut.id);
+            });
+
+            if (success) {
+                registeredShortcuts[accelerator] = shortcut.id;
+                console.log(`Registered shortcut: ${ accelerator } for ${ shortcut.id }`);
+            } else {
+                console.error(`Failed to register shortcut: ${ accelerator }`);
+            }
+        } catch (err) {
+            console.error(`Error registering shortcut ${ accelerator }:`, err);
+        }
+    });
+}
+
+async function loadAndRegisterShortcuts() {
+    try {
+        const shortcuts = await storageService.loadData<ShortcutConfig[]>(SHORTCUTS_KEY);
+        if (shortcuts && Array.isArray(shortcuts)) {
+            registerShortcuts(shortcuts);
+        } else {
+
+            const defaultShortcuts = [
+                {
+                    id: 'openTray',
+                    name: 'Open Tray Popup',
+                    description: 'Show the tray popup window',
+                    defaultShortcut: 'Alt+Space',
+                    currentShortcut: 'Alt+Space',
+                },
+                {
+                    id: 'createTicket',
+                    name: 'Create New Ticket',
+                    description: 'Create a new ticket from tray',
+                    defaultShortcut: 'Alt+N',
+                    currentShortcut: 'Alt+N',
+                }
+            ];
+            registerShortcuts(defaultShortcuts);
+            await storageService.saveData(SHORTCUTS_KEY, defaultShortcuts);
+        }
+    } catch (error) {
+        console.error('Error loading and registering shortcuts:', error);
+    }
+}
+
 const setupIPC = (): void => {
     ipcMain.on('show-main-app', () => {
         if (mainWindow) {
@@ -479,11 +619,7 @@ const setupIPC = (): void => {
 
     ipcMain.handle('upload-image', async (event, imageData) => {
         try {
-            // For this implementation, we're storing images directly in the data
-            // If you want to save images to disk instead, you could do that here
-            // and return a file path reference
 
-            // Just return the image data as is for now
             return {success: true, imageData};
         } catch (error) {
             console.error('Failed to process image:', error);
@@ -491,7 +627,6 @@ const setupIPC = (): void => {
         }
     });
 
-    // Tag Management
     ipcMain.handle('get-tags-data', async () => {
         try {
             const tags = await storageService.loadTags();
@@ -512,7 +647,6 @@ const setupIPC = (): void => {
         }
     });
 
-    // Group Management
     ipcMain.handle('get-groups-data', async () => {
         try {
             const groups = await storageService.loadGroups();
@@ -553,6 +687,7 @@ const setupIPC = (): void => {
             return false;
         }
     });
+
     ipcMain.handle('update-tag-on-tickets', async (_, updatedTag) => {
         try {
             const boardState = await storageService.loadData(BOARD_STATE_KEY);
@@ -598,8 +733,7 @@ const setupIPC = (): void => {
 
     ipcMain.handle('update-group-on-tickets', async (_, groupId, oldName, newName) => {
         try {
-
-            const boardState: BoardState = await storageService.loadData(BOARD_STATE_KEY);
+            const boardState = await storageService.loadData(BOARD_STATE_KEY);
             if (!boardState || !boardState.boardData || !boardState.boardData.columnMap) {
                 return false;
             }
@@ -620,7 +754,6 @@ const setupIPC = (): void => {
             }
 
             if (updated) {
-
                 await storageService.saveData(BOARD_STATE_KEY, boardState);
 
                 if (mainWindow) {
@@ -635,6 +768,45 @@ const setupIPC = (): void => {
             return false;
         } catch (error) {
             console.error('Error updating group on tickets:', error);
+            return false;
+        }
+    });
+
+    ipcMain.handle('get-keyboard-shortcuts', async () => {
+        try {
+            return await storageService.loadData<ShortcutConfig[]>(SHORTCUTS_KEY) || [
+                {
+                    id: 'openTray',
+                    name: 'Open Tray Popup',
+                    description: 'Show the tray popup window',
+                    defaultShortcut: 'Alt+Space',
+                    currentShortcut: 'Alt+Space',
+                },
+                {
+                    id: 'createTicket',
+                    name: 'Create New Ticket',
+                    description: 'Create a new ticket from tray',
+                    defaultShortcut: 'Alt+N',
+                    currentShortcut: 'Alt+N',
+                }
+            ];
+        } catch (error) {
+            console.error('Error loading keyboard shortcuts:', error);
+            return null;
+        }
+    });
+
+    ipcMain.handle('save-keyboard-shortcuts', async (_, shortcuts: ShortcutConfig[]) => {
+        try {
+            await storageService.saveData(SHORTCUTS_KEY, shortcuts);
+
+            unregisterAllShortcuts();
+
+            registerShortcuts(shortcuts);
+
+            return true;
+        } catch (error) {
+            console.error('Error saving keyboard shortcuts:', error);
             return false;
         }
     });
@@ -684,7 +856,10 @@ const initializeApp = (): void => {
         return;
     }
 
-    app.on('ready', createMainWindow);
+    app.whenReady().then(() => {
+        createMainWindow();
+        loadAndRegisterShortcuts();
+    });
 
     app.on('window-all-closed', () => {
         if (process.platform !== 'darwin') {
@@ -711,6 +886,10 @@ const initializeApp = (): void => {
         }
 
         await saveBoardState();
+    });
+
+    app.on('will-quit', () => {
+        unregisterAllShortcuts();
     });
 };
 

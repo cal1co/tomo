@@ -19,5 +19,7 @@ interface Window {
         incrementTicketNumber: (groupId: string) => Promise<boolean>;
         updateTagOnTickets: (updatedTag: any) => Promise<boolean>;
         updateGroupOnTickets: (groupId: string, oldName: string, newName: string) => Promise<boolean>;
+        getKeyboardShortcuts: () => Promise<any[]>;
+        saveKeyboardShortcuts: (shortcuts: any[]) => Promise<boolean>;
     };
 }

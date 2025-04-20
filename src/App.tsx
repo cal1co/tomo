@@ -5,6 +5,7 @@ import Board from "./components/BoardComponent";
 import Notification from "./components/Notification";
 import { setGlobalTheme } from "@atlaskit/tokens";
 import { NotificationType } from "./types";
+import StandaloneCreateTicketHandler from "./components/StandaloneCreateTicketHandler";
 
 type NotificationData = {
     type: NotificationType
@@ -109,35 +110,37 @@ const App: React.FC = () => {
         return <div className="loading">Loading...</div>;
     }
 
-    if (isTrayWindow) {
-        return (
-            <div className="tray-container">
-                <div className="tray-content">
-                    <Board isTrayWindow={ true }/>
-                </div>
-                { notification && (
-                    <Notification
-                        type={ notification.type }
-                        message={ notification.message }
-                        onClose={ () => setNotification(null) }
-                    />
-                ) }
-            </div>
-        );
-    }
-
     return (
         <>
-            <div className="app-content">
-                <SettingsModal/>
-                <Board isTrayWindow={ false }/>
-            </div>
-            { notification && (
-                <Notification
-                    type={ notification.type }
-                    message={ notification.message }
-                    onClose={ () => setNotification(null) }
-                />
+            { isTrayWindow && <StandaloneCreateTicketHandler/> }
+
+            { isTrayWindow ? (
+                <div className="tray-container">
+                    <div className="tray-content">
+                        <Board isTrayWindow={ true }/>
+                    </div>
+                    { notification && (
+                        <Notification
+                            type={ notification.type }
+                            message={ notification.message }
+                            onClose={ () => setNotification(null) }
+                        />
+                    ) }
+                </div>
+            ) : (
+                <>
+                    <div className="app-content">
+                        <SettingsModal/>
+                        <Board isTrayWindow={ false }/>
+                    </div>
+                    { notification && (
+                        <Notification
+                            type={ notification.type }
+                            message={ notification.message }
+                            onClose={ () => setNotification(null) }
+                        />
+                    ) }
+                </>
             ) }
         </>
     );

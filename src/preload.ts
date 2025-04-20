@@ -9,17 +9,35 @@ contextBridge.exposeInMainWorld("electron", {
         }
     },
     receive: (channel: string, callback: (data: any) => void) => {
-        const validChannels = ['update-menu-items', 'update-submenu', 'sync-state-update', 'perform-undo', 'show-message', 'image-uploaded'];
+        const validChannels = [
+            'update-menu-items',
+            'update-submenu',
+            'sync-state-update',
+            'perform-undo',
+            'show-message',
+            'image-uploaded',
+            'show-create-ticket'
+        ];
         if (validChannels.includes(channel)) {
             ipcRenderer.on(channel, (_, data) => callback(data));
         }
     },
+
     removeListener: (channel: string) => {
-        const validChannels = ['update-menu-items', 'update-submenu', 'sync-state-update', 'perform-undo', 'show-message', 'image-uploaded'];
+        const validChannels = [
+            'update-menu-items',
+            'update-submenu',
+            'sync-state-update',
+            'perform-undo',
+            'show-message',
+            'image-uploaded',
+            'show-create-ticket'
+        ];
         if (validChannels.includes(channel)) {
             ipcRenderer.removeAllListeners(channel);
         }
     },
+
     onOpenSettings: (callback: () => void) => {
         ipcRenderer.on("open-settings-modal", callback);
     },
@@ -64,5 +82,11 @@ contextBridge.exposeInMainWorld("electron", {
     },
     updateGroupOnTickets: (groupId: string, oldName: string, newName: string) => {
         return ipcRenderer.invoke('update-group-on-tickets', groupId, oldName, newName);
+    },
+    getKeyboardShortcuts: () => {
+        return ipcRenderer.invoke('get-keyboard-shortcuts');
+    },
+    saveKeyboardShortcuts: (shortcuts: any[]) => {
+        return ipcRenderer.invoke('save-keyboard-shortcuts', shortcuts);
     }
 });
