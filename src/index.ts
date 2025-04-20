@@ -2,7 +2,7 @@ import { app, BrowserWindow, globalShortcut, ipcMain, Menu, nativeImage, Tray } 
 import path from 'path';
 import fs from 'fs';
 import storageService from './storage-service';
-import { GroupType } from "./types";
+import { BoardState, GroupType } from "./types";
 
 declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
 declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
@@ -550,6 +550,91 @@ const setupIPC = (): void => {
             return true;
         } catch (error) {
             console.error('Error incrementing ticket number:', error);
+            return false;
+        }
+    });
+    ipcMain.handle('update-tag-on-tickets', async (_, updatedTag) => {
+        try {
+            const boardState = await storageService.loadData(BOARD_STATE_KEY);
+            if (!boardState || !boardState.boardData || !boardState.boardData.columnMap) {
+                return false;
+            }
+
+            let updated = false;
+            const columnMap = boardState.boardData.columnMap;
+
+            for (const columnId in columnMap) {
+                const column = columnMap[columnId];
+                for (let i = 0; i < column.items.length; i++) {
+                    const ticket = column.items[i];
+                    if (ticket.tags && Array.isArray(ticket.tags)) {
+                        const tagIndex = ticket.tags.findIndex(tag => tag.id === updatedTag.id);
+                        if (tagIndex !== -1) {
+                            column.items[i].tags[tagIndex] = updatedTag;
+                            updated = true;
+                        }
+                    }
+                }
+            }
+
+            if (updated) {
+                await storageService.saveData(BOARD_STATE_KEY, boardState);
+
+                if (mainWindow) {
+                    mainWindow.webContents.send('sync-state-update', boardState);
+                }
+                if (trayWindow) {
+                    trayWindow.webContents.send('sync-state-update', boardState);
+                }
+                return true;
+            }
+
+            return false;
+        } catch (error) {
+            console.error('Error updating tag on tickets:', error);
+            return false;
+        }
+    });
+
+    ipcMain.handle('update-group-on-tickets', async (_, groupId, oldName, newName) => {
+        try {
+
+            const boardState: BoardState = await storageService.loadData(BOARD_STATE_KEY);
+            if (!boardState || !boardState.boardData || !boardState.boardData.columnMap) {
+                return false;
+            }
+
+            let updated = false;
+            const columnMap = boardState.boardData.columnMap;
+
+            for (const columnId in columnMap) {
+                const column = columnMap[columnId];
+                for (let i = 0; i < column.items.length; i++) {
+                    const ticket = column.items[i];
+                    if (ticket.number && ticket.number.startsWith(`${ oldName }-`)) {
+                        const ticketNum = ticket.number.split('-')[1];
+                        column.items[i].number = `${ newName }-${ ticketNum }`;
+                        updated = true;
+                    }
+                }
+            }
+
+            if (updated) {
+
+                await storageService.saveData(BOARD_STATE_KEY, boardState);
+
+                if (mainWindow) {
+                    mainWindow.webContents.send('sync-state-update', boardState);
+                }
+                if (trayWindow) {
+                    trayWindow.webContents.send('sync-state-update', boardState);
+                }
+                return true;
+            }
+
+            return false;
+        } catch (error) {
+            console.error('Error updating group on tickets:', error);
             return false;
         }
     });

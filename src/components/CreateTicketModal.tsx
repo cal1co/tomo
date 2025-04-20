@@ -174,26 +174,23 @@ const CreateTicketModal: React.FC<CreateTicketModalProps> = ({
                             <Field name="group" label="Group">
                                 { () => (
                                     <>
-                                        <select
-                                            style={ {
-                                                width: "100%",
-                                                padding: "8px",
-                                                borderRadius: "3px",
-                                                border: "2px solid #DFE1E6",
-                                                outline: "none",
-                                                height: "40px",
-                                                marginBottom: "8px",
+                                        <Select
+                                            inputId="group-select"
+                                            className="single-select"
+                                            classNamePrefix="react-select"
+                                            options={ availableGroups.map(group => ({
+                                                label: `${ group.name } (Next: ${ group.name }-${ group.nextTicketNumber })`,
+                                                value: group.id
+                                            })) }
+                                            placeholder="Select a group"
+                                            value={ selectedGroupId ? {
+                                                label: availableGroups.find(g => g.id === selectedGroupId)?.name || "",
+                                                value: selectedGroupId
+                                            } : null }
+                                            onChange={ (option: any) => {
+                                                setSelectedGroupId(option ? option.value : null);
                                             } }
-                                            value={ selectedGroupId }
-                                            onChange={ (e) => setSelectedGroupId(e.target.value) }
-                                        >
-                                            <option value="">Select a group</option>
-                                            { availableGroups.map((group) => (
-                                                <option key={ group.id } value={ group.id }>
-                                                    { group.name } (Next: { group.name }-{ group.nextTicketNumber })
-                                                </option>
-                                            )) }
-                                        </select>
+                                        />
                                         <HelperMessage>
                                             This will determine the ticket number (e.g., GROUP-1)
                                         </HelperMessage>

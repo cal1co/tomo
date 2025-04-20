@@ -5,8 +5,9 @@ import TextField from "@atlaskit/textfield";
 import { Field } from "@atlaskit/form";
 import TrashIcon from "@atlaskit/icon/glyph/trash";
 import EditorEditIcon from "@atlaskit/icon/glyph/editor/edit";
-import { TagColor, tagStyleOptions, TagType } from "../types";
+import { NotificationType, TagColor, tagStyleOptions, TagType } from "../types";
 import SectionMessage from "@atlaskit/section-message";
+import Select from "@atlaskit/select";
 
 interface TagConfigModalProps {
     isOpen: boolean;
@@ -21,7 +22,7 @@ const TagConfigModal: React.FC<TagConfigModalProps> = ({isOpen, onClose}) => {
     const [editTagName, setEditTagName] = useState("");
     const [editTagColor, setEditTagColor] = useState<TagColor>("green");
     const [notification, setNotification] = useState<{
-        type: "success" | "error" | "information" | "warning";
+        type: NotificationType;
         message: string;
     } | null>(null);
 
@@ -109,7 +110,7 @@ const TagConfigModal: React.FC<TagConfigModalProps> = ({isOpen, onClose}) => {
         }
     };
 
-    const handleSaveEdit = (tagId: string) => {
+    const handleSaveEdit = async (tagId: string) => {
         if (!editTagName.trim()) {
             setNotification({
                                 type: "warning",
@@ -126,22 +127,54 @@ const TagConfigModal: React.FC<TagConfigModalProps> = ({isOpen, onClose}) => {
             return;
         }
 
+        const originalTag = tags.find(tag => tag.id === tagId);
+        if (!originalTag) return;
+
+        const updatedTag = {
+            ...originalTag,
+            name: editTagName.trim(),
+            color: editTagColor
+        };
+
         const updatedTags = tags.map(tag =>
-                                         tag.id === tagId
-                                             ? {...tag, name: editTagName.trim(), color: editTagColor}
-                                             : tag
+                                         tag.id === tagId ? updatedTag : tag
         );
 
         setTags(updatedTags);
-        saveTagsToStorage(updatedTags);
-        setIsEditing(null);
 
-        setNotification({
-                            type: "success",
-                            message: "Tag updated successfully",
-                        });
+        try {
+
+            await saveTagsToStorage(updatedTags);
+
+            if (window.electron && typeof window.electron.updateTagOnTickets === 'function') {
+                const success = await window.electron.updateTagOnTickets(updatedTag);
+                if (success) {
+                    setNotification({
+                                        type: "success",
+                                        message: "Tag updated and propagated to all tickets",
+                                    });
+                } else {
+                    setNotification({
+                                        type: "success",
+                                        message: "Tag updated successfully",
+                                    });
+                }
+            } else {
+                setNotification({
+                                    type: "success",
+                                    message: "Tag updated successfully",
+                                });
+            }
+
+            setIsEditing(null);
+        } catch (error) {
+            console.error("Error updating tag:", error);
+            setNotification({
+                                type: "error",
+                                message: "An error occurred while updating the tag",
+                            });
+        }
     };
-
     const handleDeleteTag = (tagId: string) => {
         const tagToDelete = tags.find(tag => tag.id === tagId);
         if (!tagToDelete) return;
@@ -201,24 +234,22 @@ const TagConfigModal: React.FC<TagConfigModalProps> = ({isOpen, onClose}) => {
                         <div style={ {width: "150px"} }>
                             <Field name="newTagColor" label="Color">
                                 { () => (
-                                    <select
-                                        style={ {
-                                            width: "100%",
-                                            padding: "8px",
-                                            borderRadius: "3px",
-                                            border: "2px solid #DFE1E6",
-                                            outline: "none",
-                                            height: "40px",
+                                    <Select
+                                        inputId="color-select"
+                                        className="single-select"
+                                        classNamePrefix="react-select"
+                                        options={ colorOptions.map(color => ({
+                                            label: color.charAt(0).toUpperCase() + color.slice(1),
+                                            value: color
+                                        })) }
+                                        value={ {
+                                            label: newTagColor.charAt(0).toUpperCase() + newTagColor.slice(1),
+                                            value: newTagColor
                                         } }
-                                        value={ newTagColor }
-                                        onChange={ (e) => setNewTagColor(e.target.value as TagColor) }
-                                    >
-                                        { colorOptions.map((color) => (
-                                            <option key={ color } value={ color }>
-                                                { color.charAt(0).toUpperCase() + color.slice(1) }
-                                            </option>
-                                        )) }
-                                    </select>
+                                        onChange={ (option: any) => {
+                                            setNewTagColor(option.value);
+                                        } }
+                                    />
                                 ) }
                             </Field>
                         </div>

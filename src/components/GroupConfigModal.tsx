@@ -107,7 +107,7 @@ const GroupConfigModal: React.FC<GroupConfigModalProps> = ({isOpen, onClose}) =>
         }
     };
 
-    const handleSaveEdit = (groupId: string) => {
+    const handleSaveEdit = async (groupId: string) => {
         if (!editGroupName.trim()) {
             setNotification({
                                 type: "warning",
@@ -126,20 +126,51 @@ const GroupConfigModal: React.FC<GroupConfigModalProps> = ({isOpen, onClose}) =>
             return;
         }
 
+        const originalGroup = groups.find(group => group.id === groupId);
+        if (!originalGroup) return;
+
+        const oldName = originalGroup.name;
+        const newName = cleanGroupName;
+
         const updatedGroups = groups.map(group =>
                                              group.id === groupId
-                                                 ? {...group, name: cleanGroupName}
+                                                 ? {...group, name: newName}
                                                  : group
         );
 
         setGroups(updatedGroups);
-        saveGroupsToStorage(updatedGroups);
-        setIsEditing(null);
 
-        setNotification({
-                            type: "success",
-                            message: "Group updated successfully",
-                        });
+        try {
+            await saveGroupsToStorage(updatedGroups);
+
+            if (oldName !== newName && window.electron && typeof window.electron.updateGroupOnTickets === 'function') {
+                const success = await window.electron.updateGroupOnTickets(groupId, oldName, newName);
+                if (success) {
+                    setNotification({
+                                        type: "success",
+                                        message: "Group updated and propagated to all tickets",
+                                    });
+                } else {
+                    setNotification({
+                                        type: "success",
+                                        message: "Group updated successfully",
+                                    });
+                }
+            } else {
+                setNotification({
+                                    type: "success",
+                                    message: "Group updated successfully",
+                                });
+            }
+
+            setIsEditing(null);
+        } catch (error) {
+            console.error("Error updating group:", error);
+            setNotification({
+                                type: "error",
+                                message: "An error occurred while updating the group",
+                            });
+        }
     };
 
     const handleDeleteGroup = (groupId: string) => {
